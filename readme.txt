@@ -15,8 +15,8 @@ Chaque jour:
 		export_HOMME_Brut_234.xlsx
 	2. les fichiers doivent se trouver dans le repertoire Tx\ correspondant au Tour de LGS à enregistrer
 	3. Intégrer les résultat dans la feuille du jour
-		> par exemple pour le 1er Tour: Calcul La Grande Semaine - STROKEPLAY - T1 - HOMME_OU_DAME_v2.9.xlsm)
-		> par exemple pour la Finale  : Calcul La Grande Semaine - STROKEPLAY - Finale - HOMME_OU_DAME_v2.9.xlsm)
+		> par exemple pour le 1er Tour: Calcul La Grande Semaine - STROKEPLAY - T1 - HOMME_OU_DAME_v2.10.xlsm)
+		> par exemple pour la Finale  : Calcul La Grande Semaine - STROKEPLAY - Finale - HOMME_OU_DAME_v2.10.xlsm)
 
 		> lancer l'application du jour
 		> INTEGRER TOUT (TODO verification, sinon faire a la main en partant d'une copie du jour précédent)
