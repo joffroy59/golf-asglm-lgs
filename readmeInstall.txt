@@ -28,7 +28,7 @@ Initialisation de LGS
 		<ASGLM annee>/LGS/T7
 
 	avoir le fichier de calcul vierge dans : 
-		<ASGLM annee>/LGS/Calcul La Grande Semaine - STROKEPLAY - Final - HOMME_OU_DAME_v2.9 - ALL.xlsm
+		<ASGLM annee>/LGS/Calcul La Grande Semaine - STROKEPLAY - Final - HOMME_OU_DAME_v2.10 - ALL.xlsm
 
 Procedure d'intégration des score de la journee
 
