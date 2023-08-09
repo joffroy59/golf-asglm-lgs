@@ -13,18 +13,24 @@ set APPLICATION_README_FULL=%APPLICATION_PATH%\%APPLICATION_README%
 set HELPER_PATH=fichier exemple nom export FFG
 set HELPER_FULL=%APPLICATION_PATH%\%HELPER_PATH%
 
-echo Cr�ation des r�pertoires
-set list=T1 T2 T3 T4 T5 T6 T7 Finale Backup Poub 
+set tours=T1 T2 T3 T4 T5 T6
+
+echo Creation des repertoires
+echo "%tours%"
+
+set list=%tours% T7 Finale Backup Poub 
+echo "%lists%"
+
 (for %%x in (%list%) do ( 
   mkdir %%x 2> nul
 ))
 
 rem get current year
 for /f %%i in ('dir /B ..\..') do set CURRENT_YEAR=%%i
-echo C�ation de l'application pour l'ann�e: %CURRENT_YEAR%
+echo Ceation de l'application pour l'annee: %CURRENT_YEAR%
 
 echo Installation de l'APPLICATION: %APPLICATION_FULL% --^>
-set list=T1 T2 T3 T4 T5 T6 Finale 
+set list=%tours% Finale 
 (for %%a in (%list%) do ( 
   copy /-Y "%APPLICATION_FULL%" "Calcul La Grande Semaine - STROKEPLAY - %%a - HOMME_OU_DAME_v%VERSION%.xlsm"
 ))
