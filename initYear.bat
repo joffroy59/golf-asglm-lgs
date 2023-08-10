@@ -1,6 +1,6 @@
 @echo off
 setlocal enableDelayedExpansion
-set INIT_SCRIPT=init.bat
+set SCRIPT_INIT=init.bat
 
 set /p "YEAR=Année: "
 
@@ -21,12 +21,12 @@ IF EXIST "%PATH_ASGLM_YEAR%" (
 		echo Cr�ation du r�pertoire !PATH_LGS!
 		mkdir "!PATH_LGS!" 2> nul
 
-		echo Copy du script d'initialisation de l'application %INIT_SCRIPT% dans !PATH_LGS!\
-		copy /-Y "%INIT_SCRIPT%" "!PATH_LGS!\"
-		echo Ex�cution du script d'initialisation de l'application %INIT_SCRIPT% dans !PATH_LGS!\
+		echo Copy du script d'initialisation de l'application %SCRIPT_INIT% dans !PATH_LGS! et script de renomage des exports\
+		copy /-Y "%SCRIPT_INIT%" "!PATH_LGS!\"
+		echo Ex�cution du script d'initialisation de l'application %SCRIPT_INIT% dans !PATH_LGS!\
 		cd "!PATH_LGS!\"
-		call "%INIT_SCRIPT%"
-		del "%INIT_SCRIPT%"
+		call "%SCRIPT_INIT%"
+		del "%SCRIPT_INIT%"
 	)
 ) ELSE (
 	echo %PATH_ASGLM_YEAR% n'existe pas.
