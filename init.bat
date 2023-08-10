@@ -28,7 +28,7 @@ set list=%tours_plus% %tech%
 
 rem get current year
 for /f %%i in ('dir /B ..\..') do set CURRENT_YEAR=%%i
-echo Ceation de l'application pour l'annee: %CURRENT_YEAR%
+echo Creation de l'application pour l'annee: %CURRENT_YEAR%
 
 echo Installation de l'APPLICATION: %APPLICATION_FULL% --^>
 (for %%a in (%tours%) do ( 
