@@ -3,6 +3,7 @@ setlocal enableDelayedExpansion
 set SCRIPT_INIT=init.bat
 set SCRIPT_RENAME=rename.bat
 set SCRIPT_RENAME_DOC=exportRMS9.md
+set SCRIPT_BACKUP=backup.bat
 
 set /p "YEAR=Année: "
 
@@ -27,6 +28,7 @@ IF EXIST "%PATH_ASGLM_YEAR%" (
 		copy /-Y "%SCRIPT_INIT%" "!PATH_LGS!\"
 		copy /-Y "%SCRIPT_RENAME%" "!PATH_LGS!\"
 		copy /-Y "%SCRIPT_RENAME_DOC%" "!PATH_LGS!\"
+		copy /-Y "%SCRIPT_BACKUP%" "!PATH_LGS!\"
 		dir
 		dir T1
 		echo Ex�cution du script d'initialisation de l'application %SCRIPT_INIT% dans !PATH_LGS!\
@@ -35,6 +37,7 @@ IF EXIST "%PATH_ASGLM_YEAR%" (
 		del "%SCRIPT_INIT%"
 		del "%SCRIPT_RENAME%"
 		del "%SCRIPT_RENAME_DOC%"
+		del "%SCRIPT_BACKUP%"
 	)
 ) ELSE (
 	echo %PATH_ASGLM_YEAR% n'existe pas.
