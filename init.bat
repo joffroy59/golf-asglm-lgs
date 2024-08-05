@@ -21,6 +21,7 @@ set tech=Backup Poub
 
 set SCRIPT_RENAME=rename.bat
 set SCRIPT_RENAME_DOC=exportRMS9.md
+set SCRIPT_BACKUP=backup.bat
 
 echo Creation des repertoires
 
@@ -29,6 +30,7 @@ set list=%tours_plus% %tech%
   mkdir %%x 2> nul
   copy /-Y "%SCRIPT_RENAME%" "%%x"
   copy /-Y "%SCRIPT_RENAME_DOC%" "%%x"
+  copy /-Y "%SCRIPT_BACKUP%" "%%x"
 ))
 
 rem get current year
