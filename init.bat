@@ -1,9 +1,9 @@
 @echo OFF
 setlocal enableDelayedExpansion
 
-set VERSION=2.11
+set VERSION=2.12
 set BASE=
-set END= 
+set END=
 set APPLICATION=Calcul La Grande Semaine - STROKEPLAY - Tn - HOMME_OU_DAME_v%VERSION%.xlsm
 
 set APPLICATION_PATH=..\..\LGS_Application
@@ -26,7 +26,7 @@ set SCRIPT_BACKUP=backup.bat
 echo Creation des repertoires
 
 set list=%tours_plus% %tech%
-(for %%x in (%list%) do ( 
+(for %%x in (%list%) do (
   mkdir %%x 2> nul
   copy /-Y "%SCRIPT_RENAME%" "%%x"
   copy /-Y "%SCRIPT_RENAME_DOC%" "%%x"
@@ -38,7 +38,7 @@ for /f %%i in ('dir /B ..\..') do set CURRENT_YEAR=%%i
 echo Creation de l'application pour l'annee: %CURRENT_YEAR%
 
 echo Installation de l'APPLICATION: %APPLICATION_FULL% --^>
-(for %%a in (%tours%) do ( 
+(for %%a in (%tours%) do (
   copy /-Y "%APPLICATION_FULL%" "Calcul La Grande Semaine - STROKEPLAY - %%a - HOMME_OU_DAME_v%VERSION%.xlsm"
 ))
 
