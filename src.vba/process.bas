@@ -2,8 +2,8 @@ Function processGolfMatchSheetFromFile(NomFichierTour As String, TaskType As Str
     Dim ColRang As Integer
     Dim ColNom As Integer
     Dim ColClub As Integer
-    Dim colIndex As Integer
-    Dim ColScore As Integer
+    Dim ColIndex As Integer
+    
     Dim LigneRang As Integer
     Dim I As Integer
     Dim DerniereLigne As Long
@@ -22,7 +22,7 @@ Function processGolfMatchSheetFromFile(NomFichierTour As String, TaskType As Str
     Dim NomFeuilleCumulJoueur  As String
 
     Dim wb As Workbook
-    Dim ws As Worksheet
+    Dim WsImportResultTour As Worksheet
     
     '---------------------
     'Check 'Tour' is set
@@ -40,6 +40,7 @@ Function processGolfMatchSheetFromFile(NomFichierTour As String, TaskType As Str
         '------------------------------------------
         NomFichierTour = Application.GetOpenFilename(Title:="Import du resultat d'un tour" & " " & ScoreType)
     End If
+    
     Debug.Print "Traitement du fichier: " & NomFichierTour;
     If InStr(NomFichierTour, ":") = 0 Then
         Erreur = True
@@ -49,8 +50,6 @@ Function processGolfMatchSheetFromFile(NomFichierTour As String, TaskType As Str
     End If
     
     Call recordToHistory(TaskType & " - Tour " & TourImporte, NomFichierTour, "ALL", "ALL")
-
-    
     
     Set TableauJoueursIdx = CreateObject("Scripting.Dictionary")
     TableauJoueursIdx.Add "date", 0
@@ -67,39 +66,31 @@ Function processGolfMatchSheetFromFile(NomFichierTour As String, TaskType As Str
     TableauJoueursIdx.Add "genre", 11
     
     Set wb = Application.Workbooks.Open(NomFichierTour)
-    Set ws = wb.Worksheets("Report")
+    Set WsImportResultTour = wb.Worksheets("Report")
     
-    ws.Activate
-    
-    DerniereLigne = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
-    ' MsgBox "nb line : " & DerniereLigne
-    
-    ColScore = ActiveCell.Column
+    DerniereLigne = WsImportResultTour.Cells(WsImportResultTour.Rows.Count, "A").End(xlUp).Row
     
     '---------------------------
     'Lecture du tableau de score
     '---------------------------
     currentScoreIdx = 0
     For I = 1 To DerniereLigne
-        ' MsgBox ws.Cells(I, 1).Value
-        ' MsgBox GetValueByColumnName(ws, "Brut / net", I)
-        nomComp = GetValueByColumnName(ws, "Nom competition", I)
+        nomComp = GetValueByColumnName(WsImportResultTour, "Nom competition", I)
         If nomComp <> "Nom competition" Then
-            If IsNumeric(GetValueByColumnName(ws, "Score Tour 1", I)) Then '_limination des joueurs absents ou forfait
+            If IsNumeric(GetValueByColumnName(WsImportResultTour, "Score Tour 1", I)) Then '_limination des joueurs absents ou forfait
             
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("date")) = GetValueByColumnName(ws, "Date", I)
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("competition")) = GetValueByColumnName(ws, "Nom competition", I)
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("date")) = GetValueByColumnName(WsImportResultTour, "Date", I)
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("competition")) = GetValueByColumnName(WsImportResultTour, "Nom competition", I)
                 TableauJoueurs(currentScoreIdx, TableauJoueursIdx("tour")) = TourImporte
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("rang")) = GetValueByColumnName(ws, "Rang", I)
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("name")) = GetValueByColumnName(ws, "Nom / prenom", I)
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("club")) = GetValueByColumnName(ws, "Club", I)
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("index")) = GetValueByColumnName(ws, "Index Cpt", I)
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("score")) = GetValueByColumnName(ws, "Score Tour 1", I)
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("serie")) = GetValueByColumnName(ws, "Série d'index", I)
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("serie_calc")) = getSerieMock(GetValueByColumnName(ws, "Index Cpt", I))
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("score_type")) = GetValueByColumnName(ws, "Brut / net", I)
-                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("genre")) = GetValueByColumnName(ws, "Sexe", I)
-                ' MsgBox TableauJoueurs(currentScoreIdx, TableauJoueursIdx("tour")) & "|" & TableauJoueurs(currentScoreIdx, TableauJoueursIdx("name"))
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("rang")) = GetValueByColumnName(WsImportResultTour, "Rang", I)
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("name")) = GetValueByColumnName(WsImportResultTour, "Nom / prenom", I)
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("club")) = GetValueByColumnName(WsImportResultTour, "Club", I)
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("index")) = GetValueByColumnName(WsImportResultTour, "Index Cpt", I)
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("score")) = GetValueByColumnName(WsImportResultTour, "Score Tour 1", I)
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("serie")) = GetValueByColumnName(WsImportResultTour, "Série d'index", I)
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("serie_calc")) = getSerieMock(GetValueByColumnName(WsImportResultTour, "Index Cpt", I))
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("score_type")) = GetValueByColumnName(WsImportResultTour, "Brut / net", I)
+                TableauJoueurs(currentScoreIdx, TableauJoueursIdx("genre")) = GetValueByColumnName(WsImportResultTour, "Sexe", I)
                 Increment currentScoreIdx
             End If
         End If
@@ -109,6 +100,6 @@ Function processGolfMatchSheetFromFile(NomFichierTour As String, TaskType As Str
     
     wb.Close SaveChanges:=False
     
-    InsertDataImported TableauJoueurs, TableauJoueursIdx, scoreCount
+    Call InsertDataImported(TableauJoueurs, TableauJoueursIdx, scoreCount)
 
 End Function
