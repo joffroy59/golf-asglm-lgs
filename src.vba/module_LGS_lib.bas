@@ -20,7 +20,7 @@ Sub integrate_01(genre As String, CleanResult As Boolean, Tour, ws)
     '------------------------
     'Lecture des variables
     '------------------------
-    ' Test git
+    
     score_type = "Net"
     ColClub = Range("ClubNet").Column
     ColTour = Range("DebutTableauGeneralNet").Column
