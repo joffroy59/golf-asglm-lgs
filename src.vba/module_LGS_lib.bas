@@ -18,7 +18,7 @@ Sub integrate_01(genre As String, CleanResult As Boolean, Tour, ws)
     '------------------------
     'Lecture resultats Nets
     '------------------------
-    'Lecture des variables ARF
+    'Lecture des variables
     '------------------------
     score_type = "Net"
     ColClub = Range("ClubNet").Column
