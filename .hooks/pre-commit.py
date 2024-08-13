@@ -43,6 +43,7 @@ def parse(workbook_path):
 
 
 if __name__ == '__main__':
+    toParse = []
     for root, dirs, files in os.walk('.'):
         for f in dirs:
             if f.endswith('.vba'):
@@ -50,4 +51,7 @@ if __name__ == '__main__':
 
         for f in files:
             if f.endswith(EXCEL_FILE_EXTENSIONS):
-                parse(os.path.join(root, f))
+                toParse.append(os.path.join(root, f))
+
+    for f in toParse:
+        parse(f)
