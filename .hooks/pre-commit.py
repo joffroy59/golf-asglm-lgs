@@ -12,6 +12,12 @@ def parse(workbook_path):
     vba_parser = VBA_Parser(workbook_path)
     vba_modules = vba_parser.extract_all_macros() if vba_parser.detect_vba_macros() else []
 
+    new_file = open("git.log", "w")
+    new_file.write('workbook_path:'+workbook_path)
+    new_file.write('\n')
+    new_file.write('vba_path:'+vba_path)
+    new_file.write('\n')
+
     for _, _, filename, content in vba_modules:
         lines = []
         if '\r\n' in content:
