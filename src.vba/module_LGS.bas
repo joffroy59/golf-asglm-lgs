@@ -186,43 +186,90 @@ Function RetraitementFeuilleMatchFFGolfFichier(NomFichierTour As String, TaskTyp
         'Retour en haut ö gauche
         '-----------------------
         Range("A1").Select
-        '------------------------------------
-        'Recherche de la date de la rencontre
-        '------------------------------------
-        Cells.Find(What:="Date", After:=ActiveCell, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False).Activate
-        DateRencontre = ActiveCell.Value
-        DateRencontre = Right(DateRencontre, 11)
-        '----------------------------
-        'Recherche de la colonne Rang
-        '----------------------------
+        
+        '------------------------
+        'Recherche du type de feuille
+        '------------------------
+        NouvelleFeuilleScore = False
+        Range("A1").Select
+        On Error GoTo TypeFeuille
         Cells.Find(What:="Rang", After:=ActiveCell, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False).Activate
-        ColRang = ActiveCell.Column
-        '--------------------------------------------
-        'Recherche de la premi�re ligne des r_sultats
-        '--------------------------------------------
-        LigneRang = ActiveCell.Row
-        '---------------------------
-        'Recherche de la colonne Nom
-        '---------------------------
-        ActiveCell.Offset(0, 1).Select
-        ColNom = ActiveCell.Column
-        '----------------------------
-        'Recherche de la colonne Club
-        '----------------------------
-        ActiveCell.Offset(0, 1).Select
-        ColClub = ActiveCell.Column
-        '-------------------------------------------------------------
-        'Recherche de la colonne Index du joueur pour classement s_rie
-        '-------------------------------------------------------------
-        ActiveCell.Offset(0, 2).Select
-        ColIndex = ActiveCell.Column
-        '---------------------------------
-        'Recherche de la colonne Score Net
-        '---------------------------------
-        ActiveCell.Offset(0, 4).Select
-        ColScore = ActiveCell.Column
-        If ActiveCell.Value = "Net" Then
+        If NouvelleFeuilleScore Then
+            '---------------------------------
+            'Recherche du type de score brut ou net
+            '---------------------------------
             Net = True
+            Range("A1").Select
+            On Error GoTo TypeScore
+            Cells.Find(What:=" - Net", After:=ActiveCell, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False).Activate
+            '-------------------------
+            'Recherche de la colonne Rang
+            '-------------------------
+            Range("A1").Select
+            Cells.Find(What:="Pos.", After:=ActiveCell, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False).Activate
+            ColRang = ActiveCell.Column
+            '------------------------------------
+            'Recherche de la premire ligne des r_sultats
+            '------------------------------------
+            LigneRang = ActiveCell.Row
+            '-------------------------
+            'Recherche de la colonne Nom
+            '-------------------------
+            ActiveCell.Offset(0, 2).Select
+            ColNom = ActiveCell.Column
+            '----------------------------
+            'Recherche de la colonne Club
+            '----------------------------
+            ActiveCell.Offset(0, 1).Select
+            ColClub = ActiveCell.Column
+            '-------------------------------------------------------------
+            'Recherche de la colonne Index du joueur pour classement s_rie
+            '-------------------------------------------------------------
+            ActiveCell.Offset(0, 1).Select
+            ColIndex = ActiveCell.Column
+            '-----------------------------
+            'Recherche de la colonne Score Net
+            '-----------------------------
+            ActiveCell.Offset(0, 2).Select
+            ColScore = ActiveCell.Column
+        Else
+             '----------------------------
+            'Recherche de la colonne Rang
+            '----------------------------
+            Range("A1").Select
+            Cells.Find(What:="Rang", After:=ActiveCell, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False).Activate
+            ColRang = ActiveCell.Column
+            '--------------------------------------------
+            'Recherche de la premire ligne des r_sultatss
+            '--------------------------------------------
+            LigneRang = ActiveCell.Row
+            '---------------------------
+            'Recherche de la colonne Nom
+            '---------------------------
+            ActiveCell.Offset(0, 1).Select
+            ColNom = ActiveCell.Column
+            '----------------------------
+            'Recherche de la colonne Club
+            '----------------------------
+            ActiveCell.Offset(0, 1).Select
+            ColClub = ActiveCell.Column
+            '-------------------------------------------------------------
+            'Recherche de la colonne Index du joueur pour classement s_rie
+            '-------------------------------------------------------------
+            ActiveCell.Offset(0, 2).Select
+            ColIndex = ActiveCell.Column
+            '-----------------------------
+            'Recherche de la colonne Score Net
+            '-----------------------------
+            ActiveCell.Offset(0, 1).Select
+            ColScore = ActiveCell.Column
+            ActiveCell.Offset(0, 1).Select
+            ColScore = ActiveCell.Column
+            If ActiveCell.Value = "Net" Then
+                Net = True
+            Else
+                Net = False
+            End If
         End If
         '--------------------------------
         'Recherche de la derni�re colonne
@@ -320,6 +367,12 @@ Function RetraitementFeuilleMatchFFGolfFichier(NomFichierTour As String, TaskTyp
         Selection.TextToColumns Destination:=Range(Cells(PremiereLigne + 1, ColIndex), Cells(PremiereLigne + 1, ColIndex)), DataType:=xlDelimited, TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=True, Semicolon:=False, Comma:=False, Space:=False, Other:=False, FieldInfo:=Array(1, 1)
     End If
     RetraitementFeuilleMatchFFGolfFichier = NomFichierTour
+TypeFeuille:
+    NouvelleFeuilleScore = True
+Resume Next
+TypeScore:
+    Net = False
+Resume Next
     
 End Function
 
@@ -717,13 +770,33 @@ Sub setColorConditional(isBold)
     
 End Sub
 
+Public Sub setGender(gender As Integer)
+    Worksheets("Import Resultats Tour").Activate
+    
+    Range("F13").Value = gender
+
+End Sub
+
+Public Sub GetScoresFromFFGolfHommeDame(Optional scoreFolder As String, Optional ByVal Clean As Boolean = True, Optional TaskType As String = "Importation et generation de tous les tours depuis un repertoire HOMME/DAME")
+    Set rg = ActiveSheet.ListObjects("TableauType").DataBodyRange
+    For r = 2 To rg.Rows.Count
+        genre = rg(r - 1, 1).Value
+        genreIdx = r - 1
+        setGender (genreIdx)
+        Call GetScoresFromFFGolf(scoreFolder, Clean, TaskType)
+        Call EffacementImportForced
+    'Next Counter
+    Next
+End Sub
+
+
 Public Sub GetScoresFromFFGolf(Optional scoreFolder As String, Optional ByVal Clean As Boolean = True, Optional TaskType As String = "Importation et generation de tous les tours depuis un repertoire")
     'TODO use global
     NbTour = 7
     iTourFinal = 7
     tourFolderPatternPrefix = "T"
     tourFolderFinale = "Finale"
-    ShowMissingFolder = False
+    ShowMissingFolder = True
     
     Dim scoreFolderRoot As String
     scoreFolderRoot = scoreFolder
@@ -731,23 +804,25 @@ Public Sub GetScoresFromFFGolf(Optional scoreFolder As String, Optional ByVal Cl
     If scoreFolderRoot = "" Then
         scoreFolderRoot = GetScoreFolder("")
     End If
+    scoreFolder = scoreFolderRoot
     
     Call recordToHistory(TaskType, scoreFolderRoot)
     
     'Dim NomFichierBrut As String
     Dim tour As Integer
+    Dim scoreFolderTour As String
     For iTour = 1 To NbTour
         If iTour = iTourFinal Then
-            scoreFolder = scoreFolderRoot & "\" & tourFolderFinale
+            scoreFolderTour = scoreFolderRoot & "\" & tourFolderFinale
         Else
-            scoreFolder = scoreFolderRoot & "\" & tourFolderPatternPrefix & iTour
+            scoreFolderTour = scoreFolderRoot & "\" & tourFolderPatternPrefix & iTour
         End If
         
-        If Path_Exists(scoreFolder) Then
-            Dim fileList(2) As String
-            'fileList(0) = scoreFolder & "\" & "export_DAME_Brut_12.xlsx"
-            fileList(0) = scoreFolder & "\" & Range("export_Brut_Strokeplay_filename")
-            fileList(1) = scoreFolder & "\" & Range("export_Brut_Stabelford_filename")
+        If Path_Exists(scoreFolderTour) Then
+            Dim fileList(1) As String
+            'fileList(0) = scoreFolderTour & "\" & "export_DAME_Brut_12.xlsx"
+            fileList(0) = scoreFolderTour & "\" & Range("export_Brut_Strokeplay_filename")
+            fileList(1) = scoreFolderTour & "\" & Range("export_Brut_Stabelford_filename")
             
             'NomFichierBrut = fileList(1)
             'export_Brut_Stabelford_filename
@@ -757,11 +832,12 @@ Public Sub GetScoresFromFFGolf(Optional scoreFolder As String, Optional ByVal Cl
             CleanResult = Range("cleanResult").Value And (iTour = 1)
             
             Call ImporterBrutNet(TaskType, fileList(0), tour, True, CleanResult)
+            fileList(1) = FixMissingBrut(fileList(1))
             Call ImporterBrutNet(TaskType, fileList(1), tour, False, False)
             
         Else
             If ShowMissingFolder Then
-                MsgBox scoreFolder & " n'existe pas"
+                MsgBox scoreFolderTour & " n'existe pas"
             End If
         End If
     Next iTour
@@ -804,6 +880,21 @@ Dim Answer As VbMsgBoxResult
     End If
 End Function
 
+Function File_Is_Brut(FileName As String)
+If InStr(LCase(FileName), "brut") <> 0 Then
+    File_Is_Brut = True
+Else
+    File_Is_Brut = False
+End If
+End Function
+
+Public Function FixMissingBrut(inputFile As String)
+    If Not Path_Exists(inputFile) Then
+        FixMissingBrut = GetFileNameNetFromBrut(inputFile)
+    Else
+        FixMissingBrut = inputFile
+    End If
+End Function
 
 Public Sub ImporterBrutNet(Optional TaskType As String = "", Optional inputFile As String = "", Optional tour As Integer, Optional Clean As Boolean = False, Optional CleanResult As Boolean = False)
     'TODO refactoring
@@ -824,10 +915,14 @@ Sub ImporterBrutNetFromFiles(NomFichierBrutBase As String, TaskType As String, O
     Dim NomFichierNet As String
     NomFichierBrut = "" & NomFichierBrutBase
     NomFichierBrut = RetraitementFeuilleMatchFFGolfFichier(NomFichierBrutBase, TaskType, tour, "Brut")
-    NomFichierNet = GetFileNameNetFromBrut(NomFichierBrut)
-    NomFichierNet = RetraitementFeuilleMatchFFGolfFichier(NomFichierNet, TaskType, tour, "Net")
+    If File_Is_Brut(NomFichierBrut) Then
+        NomFichierNet = GetFileNameNetFromBrut(NomFichierBrut)
+        NomFichierNet = RetraitementFeuilleMatchFFGolfFichier(NomFichierNet, TaskType, tour, "Net")
+    End If
     
     Call CalculTour(tour, CleanResult)
+    
+    Worksheets("Import Resultats Tour").Activate
 End Sub
 
 Function GetFileNameNetFromBrut(NomFichierBrut)
