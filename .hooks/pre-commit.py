@@ -8,7 +8,7 @@ KEEP_NAME = False  # Set this to True if you would like to keep "Attribute VB_Na
 
 
 def parse(workbook_path):
-    vba_path = 'src.vba'
+    vba_path = './vba/' + workbook_path + '.vba'
     vba_parser = VBA_Parser(workbook_path)
     vba_modules = vba_parser.extract_all_macros() if vba_parser.detect_vba_macros() else []
 

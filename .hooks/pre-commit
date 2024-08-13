@@ -4,4 +4,4 @@ python .git/hooks/pre-commit.py
 
 git add -- ./git.log
 
-git add -- ./src.vba
+git add -- ./vba
