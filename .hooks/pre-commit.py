@@ -8,9 +8,15 @@ KEEP_NAME = False  # Set this to True if you would like to keep "Attribute VB_Na
 
 
 def parse(workbook_path):
-    vba_path = 'src.vba'
+    vba_path = './vba/' + workbook_path + '.vba'
     vba_parser = VBA_Parser(workbook_path)
     vba_modules = vba_parser.extract_all_macros() if vba_parser.detect_vba_macros() else []
+
+    new_file = open("git.log", "w")
+    new_file.write('workbook_path:'+workbook_path)
+    new_file.write('\n')
+    new_file.write('vba_path:'+vba_path)
+    new_file.write('\n')
 
     for _, _, filename, content in vba_modules:
         lines = []
@@ -37,6 +43,7 @@ def parse(workbook_path):
 
 
 if __name__ == '__main__':
+    toParse = []
     for root, dirs, files in os.walk('.'):
         for f in dirs:
             if f.endswith('.vba'):
@@ -44,4 +51,7 @@ if __name__ == '__main__':
 
         for f in files:
             if f.endswith(EXCEL_FILE_EXTENSIONS):
-                parse(os.path.join(root, f))
+                toParse.append(os.path.join(root, f))
+
+    for f in toParse:
+        parse(f)
