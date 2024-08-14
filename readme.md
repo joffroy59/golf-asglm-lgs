@@ -8,52 +8,62 @@ Lancer
 
     initYear.bat
 
-## 🔥 Procedure d'intégration des score de la journée 🔥  TOFINISH
+## 🔥 Procedure d'intégration des score de la journée 🔥
 
-1. Produire les exports suivants avec RMS dans le répertoire {ASGLM annee}/LGS/T<numéro du tour>:
+ℹ️ le type d'export `2d. Extraction XLS globale.xlsx` doit contenir toutes les Séries pour Homme et Dame ensemble
 
-        export_DAME_Brut_12.xlsx
-        export_DAME_Brut_34.xlsx
-        export_DAME_Net_12.xlsx
-        export_DAME_Net_34.xlsx
+1. **Produire le fichier d'export** (typez d'export `2d. Extraction XLS globale.xlsx`) suivants avec RMS dans le répertoire
+   *[ASGLM annee]/LGS/T<numéro du tour>*
 
-        export_HOMME_Brut_1.xlsx
-        export_HOMME_Brut_234.xlsx
-        export_HOMME_Net_1.xlsx
-        export_HOMME_Net_234.xlsx
+         2d. Extraction XLS globale.xls
 
-2. les fichiers doivent se trouver dans le repertoire Tx (correspondant au Tour de LGS à enregistrer)
+2. le fichier doit se trouver dans le repertoire Tx (correspondant au Tour de LGS à enregistrer)
+   dans le répertoire LGS/
 3. Intégrer les résultat dans la feuille du jour
 
     par exemple
 
    - pour le 1er Tour:
 
-         Calcul La Grande Semaine - STROKEPLAY - T1 - HOMME_OU_DAME_v2.11.xlsm
+         Calcul La Grande Semaine - STROKEPLAY - T1 - HOMME_OU_DAME_v2.xx.xlsm
    - pour la Finale
 
-         Calcul La Grande Semaine - STROKEPLAY - Finale - HOMME_OU_DAME_v2.11.xlsm
+         Calcul La Grande Semaine - STROKEPLAY - Finale - HOMME_OU_DAME_v2.xx.xlsm
 
 4. lancer l'application du jour
-5. INTEGRER TOUT
+5. **Integrer 1 Tour**
 
-    TODO verification, sinon faire a la main en partant d'une copie du jour précédent
-6. Effacer All
-7. Dame
-   - choisir "Dame" dans la boite de selection
-   - Cliquer "Importer tous les tours"
-8. Nettoyage des imports précédents
-   - Cliquer "Effacer l'import (forced)"
-9. Homme
-   - choisir "Homme" dans la boite de selection
-   - Cliquer "Importer tous les tours"
+   1. *Effacer All* (**Intégreation Résultats du premier jour pour partir d'une feuille vierge**)
+   2. Tour à importer
+      - ⚠️ choisir le tour à importer dans la boite de selection
+   3. Nettoyage des imports précédents
+      - Cliquer "Effacer l'import (forced)" ou "Effacer l'import"
+   4. Importation
+      - Cliquer "Importer Tour"
+      - Choisir le fichier dans le Repertoire `Tn/Extraction XLS globale.xls`
+      - Attendre l'importation se finisse (le curseur doit revenir en haut de la feuille en cours)
+   5. Vérification en regardant dans les 2 onglets de résultats hommes et dames
+
+## 🔥🔥 Mode tous les tours présent dans les repertoires 🔥🔥
+
+...
+5. ⚠️ **Integrer Tous Les Tours**
+
+   1. *Effacer All* (**Intégreation Résultats du premier jour pour partir d'une feuille vierge**)
+   2. *Nettoyage des imports précédents*
+      - Cliquer "Effacer l'import (forced)" ou "Effacer l'import"
+   3. *Importation*
+      - Cliquer "Importer tous les tours"
+      - Attendre l'importation se finisse (le curseur doit revenir en haut de la feuille en cours)
+   4. *Vérification* en regardant dans les 2 onglets de résultats hommes et dames
 
 ----------
 
 ### Note
 
 **init.bat**:  fichier d'initialisation du répertoire courant
-**initYear.bat**: creation pour une nouvelle année
+
+**initYear.bat**: **creation pour une nouvelle année**
 
 1. création du répertoire ASGLM {YEAR}/LGS
 2. copie du script init.bat dans le répertoire créé
@@ -75,4 +85,4 @@ Lancer
 
 2. Feuille de calcul vierge :
 
-        {ASGLM annee}/LGS/Calcul La Grande Semaine - STROKEPLAY - Final - HOMME_OU_DAME_v2.11 - ALL.xlsm
+        {ASGLM annee}/LGS/Calcul La Grande Semaine - STROKEPLAY - Final - HOMME_OU_DAME_v2.xx - ALL.xlsm
