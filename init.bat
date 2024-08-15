@@ -19,7 +19,6 @@ set tours=T1 T2 T3 T4 T5 T6 Finale
 set tours_plus=%tours% T7
 set tech=Backup Poub
 
-set SCRIPT_RENAME=rename.bat
 set SCRIPT_BACKUP=backup.bat
 
 echo Creation des repertoires
@@ -27,7 +26,6 @@ echo Creation des repertoires
 set list=%tours_plus% %tech%
 (for %%x in (%list%) do (
   mkdir %%x 2> nul
-  copy /-Y "%SCRIPT_RENAME%" "%%x"
   copy /-Y "%SCRIPT_BACKUP%" "%%x"
 ))
 

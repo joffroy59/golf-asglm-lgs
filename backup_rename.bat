@@ -3,13 +3,8 @@ echo Exécution du script de sauvegarde...
 call backup.bat
 echo Script de sauvegarde terminé.
 
-echo.
-
-echo Exécution du script de renommage...
-call rename.bat
-echo Script de renommage terminé.
 
 echo.
 
-echo Les deux scripts ont été exécutés avec succès.
+echo Le script a été exécuté avec succès.
 pause

@@ -1,7 +1,6 @@
 @echo off
 setlocal enableDelayedExpansion
 set SCRIPT_INIT=init.bat
-set SCRIPT_RENAME=rename.bat
 set SCRIPT_BACKUP=backup.bat
 
 set /p "YEAR=Année: "
@@ -25,7 +24,6 @@ IF EXIST "%PATH_ASGLM_YEAR%" (
 
 		echo Copy du script d'initialisation de l'application %SCRIPT_INIT% dans !PATH_LGS! et script de renomage des exports\
 		copy /-Y "%SCRIPT_INIT%" "!PATH_LGS!\"
-		copy /-Y "%SCRIPT_RENAME%" "!PATH_LGS!\"
 		copy /-Y "%SCRIPT_BACKUP%" "!PATH_LGS!\"
 		dir
 		dir T1
@@ -33,7 +31,6 @@ IF EXIST "%PATH_ASGLM_YEAR%" (
 		cd "!PATH_LGS!\"
 		call "%SCRIPT_INIT%"
 		del "%SCRIPT_INIT%"
-		del "%SCRIPT_RENAME%"
 		del "%SCRIPT_BACKUP%"
 	)
 ) ELSE (
