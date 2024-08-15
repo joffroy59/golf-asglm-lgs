@@ -21,7 +21,7 @@ if not exist "%backup_folder%" (
 )
 
 REM Liste des noms de fichiers à déplacer
-set "filesToMove=export_DAME_Brut_12.xlsx export_DAME_Net_12.xlsx export_HOMME_Brut_1.xlsx export_HOMME_Net_1.xlsx"
+set "filesToMove=2d. Extraction XLS globale.xls"
 
 REM Variable pour suivre si au moins un fichier a été déplacé
 set "filesMoved=false"
