@@ -6,7 +6,11 @@ une application Excel pour gérer le calcul des score de LGS
 
 Lancer
 
-    initYear.bat
+    initYear.bat YEAR
+
+    exemple pour 20225
+      cd LGS_Application
+      initYear.bat YEAR
 
 ## 🔥 Procedure d'intégration des score de la journée 🔥
 
