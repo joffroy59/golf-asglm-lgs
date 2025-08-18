@@ -46,7 +46,8 @@ Lancer
       - Cliquer "Importer Tour"
       - Choisir le fichier dans le Repertoire `Tn/Extraction XLS globale.xls`
       - Attendre l'importation se finisse (le curseur doit revenir en haut de la feuille en cours)
-   5. Vérification en regardant dans les 2 onglets de résultats hommes et dames
+   5. Intégrer le tour : Generer tour
+   6. Vérification en regardant dans les 2 onglets de résultats hommes et dames
 
 ## 🔥🔥 Mode tous les tours présent dans les repertoires 🔥🔥
 
