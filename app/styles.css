@@ -30,6 +30,9 @@ h2 { margin-bottom: .35rem; font-size: 1.7rem; letter-spacing: -.035em; }
 .button-open { width: 100%; margin-top: .75rem; border-color: #8ca098; background: #edf0ea; font-size: .67rem; }
 .button-upload { width: 100%; margin-top: .75rem; border-color: var(--green); background: #e5eadf; font-size: .67rem; }
 .button:disabled { cursor: not-allowed; opacity: .48; transform: none; }
+.external-links { display: flex; flex-wrap: wrap; gap: .8rem; padding: .8rem 0 1.25rem; border-bottom: 1px solid var(--line); }
+.link-button { display: inline-flex; align-items: center; justify-content: center; padding: .68rem 1rem; border: 1px solid var(--green); color: var(--ink); background: var(--lime); text-decoration: none; font-family: "Courier New", monospace; font-size: .76rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; transition: transform .15s ease, background .15s ease; }
+.link-button:hover { transform: translateY(-2px); background: #d0e96f; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; padding: 1.25rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
 select, input, textarea { border: 1px solid var(--line); border-radius: 0; padding: .6rem .65rem; color: var(--ink); background: var(--card); }
 #season-select { min-width: 130px; font-weight: 700; }
