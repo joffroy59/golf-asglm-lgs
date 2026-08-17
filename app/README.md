@@ -20,7 +20,9 @@ The application stores season data in the browser's local storage. Use **Exporte
 
 Deleting a season never deletes Excel files. To prevent accidental removal of the local dashboard record, type the displayed year in the confirmation dialog.
 
-To link historic Excel data, select the relevant season then choose **Lier le dossier LGS**. In Microsoft Edge or Google Chrome, select `ASGLM <year>/LGS`; the application reads the `T1` to `T7` and `Finale` folders and records the spreadsheet names it finds. The files remain read-only and are never uploaded.
+To link historic Excel data, select the relevant season then choose **Lier le dossier LGS**. In Microsoft Edge or Google Chrome, select `ASGLM <year>/LGS`; the application reads the `T1` to `T7` and `Finale` folders and records the spreadsheet names it finds. No file is uploaded; writing occurs only after an explicit **Ajouter fichier XLS** action.
+
+After linking a folder, **Ajouter fichier XLS** is enabled on each tour. Select the day's `.xls` or `.xlsx` export and it is copied into the matching `T1` to `T7` or `Finale` directory. Existing files are preserved; duplicate names receive a number such as ` (2)`.
 
 For the pre-linked 2023, 2024, and 2025 archives, **Ouvrir le fichier RMS** opens the catalogued local file directly. For any other season, link its folder first; access granted by the browser is only retained for the current session.
 

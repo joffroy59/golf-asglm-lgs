@@ -101,6 +101,7 @@ function addHistoricalSeasons(savedState) {
 
 let state = loadState();
 const linkedFileHandles = new Map();
+const linkedDirectoryHandles = new Map();
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -147,6 +148,7 @@ function renderTours(season) {
     const note = card.querySelector(".tour-note");
     const sourceSummary = card.querySelector(".source-summary");
     const openButton = card.querySelector(".open-rms-button");
+    const uploadButton = card.querySelector(".upload-xls-button");
     status.value = tour.status;
     file.value = tour.file;
     note.value = tour.note;
@@ -155,6 +157,10 @@ function renderTours(season) {
     openButton.title = openButton.disabled
       ? "Liez le dossier LGS pour ouvrir ce fichier."
       : `Ouvrir ${tour.file}`;
+    uploadButton.disabled = !linkedDirectoryHandles.has(season.id);
+    uploadButton.title = uploadButton.disabled
+      ? "Liez le dossier LGS pour ajouter un fichier."
+      : `Ajouter un fichier dans ${tour.name}`;
     status.addEventListener("change", () => updateTour(tour.number, "status", status.value));
     file.addEventListener("change", () => {
       linkedFileHandles.delete(fileHandleKey(season.id, tour.number));
@@ -162,6 +168,7 @@ function renderTours(season) {
     });
     note.addEventListener("change", () => updateTour(tour.number, "note", note.value.trim()));
     openButton.addEventListener("click", () => openRmsFile(season.id, tour.number));
+    uploadButton.addEventListener("click", () => addResultFile(season.id, tour.number));
     return card;
   }));
 }
@@ -204,6 +211,60 @@ async function openRmsFile(seasonId, tourNumber) {
   }
 }
 
+async function addResultFile(seasonId, tourNumber) {
+  const root = linkedDirectoryHandles.get(seasonId);
+  const season = state.seasons.find((item) => item.id === seasonId);
+  const tour = season?.tours.find((item) => item.number === tourNumber);
+  if (!root || !season || !tour || !window.showOpenFilePicker) {
+    alert("Liez le dossier LGS dans Edge ou Chrome avant d'ajouter un fichier.");
+    return;
+  }
+  try {
+    const [sourceHandle] = await window.showOpenFilePicker({
+      types: [{
+        description: "Fichiers Excel",
+        accept: {
+          "application/vnd.ms-excel": [".xls"],
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"]
+        }
+      }]
+    });
+    const sourceFile = await sourceHandle.getFile();
+    const folderName = tour.name === "Finale" ? "Finale" : `T${tour.number}`;
+    const folder = await root.getDirectoryHandle(folderName, { create: true });
+    const destinationHandle = await nextAvailableFileHandle(folder, sourceFile.name);
+    const destinationName = destinationHandle.name;
+    const writable = await destinationHandle.createWritable();
+    await writable.write(sourceFile);
+    await writable.close();
+
+    tour.sourceFiles = [...new Set([...(tour.sourceFiles || []), destinationName])]
+      .sort((first, second) => first.localeCompare(second, "fr"));
+    tour.file = destinationName;
+    tour.status = "ready";
+    linkedFileHandles.set(fileHandleKey(season.id, tour.number), destinationHandle);
+    render();
+    elements.scanResult.textContent = `${destinationName} ajoute dans ${folderName}.`;
+  } catch (error) {
+    if (error.name !== "AbortError") alert("L'ajout du fichier XLS a echoue.");
+  }
+}
+
+async function nextAvailableFileHandle(folder, originalName) {
+  const extensionIndex = originalName.lastIndexOf(".");
+  const baseName = extensionIndex > 0 ? originalName.slice(0, extensionIndex) : originalName;
+  const extension = extensionIndex > 0 ? originalName.slice(extensionIndex) : "";
+  for (let copyNumber = 1; ; copyNumber += 1) {
+    const candidate = copyNumber === 1 ? originalName : `${baseName} (${copyNumber})${extension}`;
+    try {
+      await folder.getFileHandle(candidate);
+    } catch (error) {
+      if (error.name === "NotFoundError") return folder.getFileHandle(candidate, { create: true });
+      throw error;
+    }
+  }
+}
+
 function sourceLabel(files) {
   if (!files.length) return "Aucune donnee locale liee";
   if (files.length === 1) return `Donnee liee : ${files[0]}`;
@@ -229,7 +290,7 @@ async function linkSeasonFolder() {
     return;
   }
   try {
-    const root = await window.showDirectoryPicker({ mode: "read" });
+    const root = await window.showDirectoryPicker({ mode: "readwrite" });
     const requiredFolders = ["T1", "Finale"];
     const hasLgsStructure = await Promise.all(requiredFolders.map(async (name) => {
       try {
@@ -245,6 +306,7 @@ async function linkSeasonFolder() {
     }
 
     const season = activeSeason();
+    linkedDirectoryHandles.set(season.id, root);
     let detectedCount = 0;
     for (const tour of season.tours) {
       const folderName = tour.name === "Finale" ? "Finale" : `T${tour.number}`;

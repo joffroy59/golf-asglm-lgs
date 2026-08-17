@@ -28,6 +28,7 @@ h2 { margin-bottom: .35rem; font-size: 1.7rem; letter-spacing: -.035em; }
 .button-danger { border-color: #aeb8b1; color: #66716a; background: #edf0ea; }
 .button-danger:not(:disabled):hover { border-color: #b74825; color: #a53d1e; background: #fff4ef; }
 .button-open { width: 100%; margin-top: .75rem; border-color: #8ca098; background: #edf0ea; font-size: .67rem; }
+.button-upload { width: 100%; margin-top: .75rem; border-color: var(--green); background: #e5eadf; font-size: .67rem; }
 .button:disabled { cursor: not-allowed; opacity: .48; transform: none; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; padding: 1.25rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
 select, input, textarea { border: 1px solid var(--line); border-radius: 0; padding: .6rem .65rem; color: var(--ink); background: var(--card); }
@@ -42,7 +43,7 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 0; paddi
 .progress-track { height: 9px; margin-top: .6rem; overflow: hidden; background: #dce2d7; }
 #progress-bar { width: 0; height: 100%; background: var(--green); transition: width .25s ease; }
 .tour-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 1rem; }
-.tour-card { min-height: 305px; padding: 1.2rem; border: 1px solid var(--line); background: var(--card); box-shadow: var(--shadow); }
+.tour-card { min-height: 350px; padding: 1.2rem; border: 1px solid var(--line); background: var(--card); box-shadow: var(--shadow); }
 .tour-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
 .tour-number { margin-bottom: 0; color: var(--orange); font-family: "Courier New", monospace; font-size: .75rem; font-weight: 700; }
 .status-pill { padding: .28rem .45rem; background: #edf0ea; color: var(--muted); font-family: "Courier New", monospace; font-size: .64rem; text-transform: uppercase; }
