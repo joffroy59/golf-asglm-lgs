@@ -6,6 +6,14 @@ Small local web application to track La Grande Semaine across multiple years.
 
 Open `app/index.html` in a modern browser. No installation, server, or dependency is required.
 
+## Initialize a new year
+
+1. Create the parent directory `..\ASGLM <year>`.
+2. Run `initYear.bat` from the repository root and enter the year when prompted.
+3. In the dashboard, create the same season and link `..\ASGLM <year>\LGS`.
+
+See the [main project README](../readme.md) for the full RMS import procedure.
+
 ## Data
 
 The application stores season data in the browser's local storage. Use **Exporter la saison** to save `lgs-saison-<year>.json` in the corresponding `ASGLM <year>/LGS` directory. Import that file to restore the season on another computer or browser.

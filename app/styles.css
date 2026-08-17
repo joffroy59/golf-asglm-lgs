@@ -50,9 +50,14 @@ h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
 .tour-card label, #season-dialog label { display: block; margin-top: .75rem; color: var(--muted); font-family: "Courier New", monospace; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .tour-card input, .tour-card select, #season-dialog input { width: 100%; margin-top: .28rem; font-family: Georgia, "Times New Roman", serif; font-size: .84rem; }
 .source-summary { min-height: 1.2rem; margin: .65rem 0 0; color: var(--green); font-family: "Courier New", monospace; font-size: .67rem; line-height: 1.35; }
-.notes-panel, .archive-panel { margin-top: 2rem; padding: 1.4rem; border-top: 3px solid var(--green); background: #e5eadf; }
+.notes-panel, .setup-panel, .archive-panel { margin-top: 2rem; padding: 1.4rem; border-top: 3px solid var(--green); background: #e5eadf; }
 .notes-panel { display: grid; grid-template-columns: minmax(170px, .6fr) 1.4fr; gap: 2rem; }
 .notes-panel textarea { width: 100%; min-height: 120px; resize: vertical; line-height: 1.45; }
+.setup-panel { display: grid; grid-template-columns: minmax(250px, 1fr) 1.15fr; gap: 2rem; }
+.setup-panel p { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
+.setup-panel a { color: var(--green); font-weight: 700; }
+.setup-panel ol { margin: 0; padding-left: 1.25rem; line-height: 1.7; }
+.setup-panel code { padding: .12rem .25rem; background: #f7f8f0; font-family: "Courier New", monospace; font-size: .82em; }
 .archive-panel { align-items: center; }
 dialog { width: min(460px, calc(100% - 2rem)); border: 0; padding: 0; box-shadow: 0 20px 60px rgba(0, 0, 0, .22); }
 dialog::backdrop { background: rgba(23, 47, 35, .55); }
@@ -60,4 +65,4 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
 #season-form input { font-size: 1rem; }
 .form-hint { margin: 1rem 0 0; color: var(--muted); font-size: .82rem; line-height: 1.45; }
 .dialog-actions { display: flex; justify-content: end; gap: .7rem; margin-top: 1.5rem; }
-@media (max-width: 650px) { .shell { width: min(100% - 1.5rem, 1180px); padding-top: 2.2rem; } .hero-row, .season-overview, .archive-panel, .season-actions { align-items: start; flex-direction: column; gap: 1.25rem; } .progress-block { text-align: left; } .notes-panel { grid-template-columns: 1fr; gap: .5rem; } }
+@media (max-width: 650px) { .shell { width: min(100% - 1.5rem, 1180px); padding-top: 2.2rem; } .hero-row, .season-overview, .archive-panel, .season-actions { align-items: start; flex-direction: column; gap: 1.25rem; } .progress-block { text-align: left; } .notes-panel, .setup-panel { grid-template-columns: 1fr; gap: .5rem; } }
