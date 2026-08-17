@@ -25,7 +25,10 @@ const elements = {
   deleteYearLabel: document.querySelector("#delete-year-label"),
   deleteYearInput: document.querySelector("#delete-year-input"),
   confirmDeleteButton: document.querySelector("#confirm-delete-button"),
-  deleteSeasonButton: document.querySelector("#delete-season-button")
+  deleteSeasonButton: document.querySelector("#delete-season-button"),
+  standingsContainer: document.querySelector("#standings-container"),
+  standingsStatus: document.querySelector("#standings-status"),
+  refreshStandingsButton: document.querySelector("#refresh-standings-button")
 };
 
 function makeSeason(year, directory) {
@@ -395,6 +398,170 @@ function importSeason(event) {
   reader.readAsText(file);
 }
 
+async function findLatestCalculFile() {
+  const season = activeSeason();
+  if (!linkedDirectoryHandles.has(season.id)) return null;
+  
+  const root = linkedDirectoryHandles.get(season.id);
+  const tourFolders = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "Finale"];
+  const calcFiles = [];
+  
+  for (const folderName of tourFolders) {
+    try {
+      const folder = await root.getDirectoryHandle(folderName);
+      for await (const entry of folder.values()) {
+        if (entry.kind === "file" && /^Calcul La Grande Semaine.*HOMME_OU_DAME_v[\d.]+\.xlsm?$/i.test(entry.name)) {
+          calcFiles.push({ folder: folderName, handle: entry, name: entry.name });
+        }
+      }
+    } catch (_) {}
+  }
+  
+  return calcFiles.length > 0 ? calcFiles[calcFiles.length - 1] : null;
+}
+
+async function refreshStandings() {
+  elements.standingsStatus.textContent = "Chargement en cours...";
+  elements.standingsContainer.innerHTML = "";
+  
+  try {
+    const fileInfo = await findLatestCalculFile();
+    if (!fileInfo) {
+      elements.standingsStatus.textContent = "Aucun fichier Calcul La Grande Semaine trouve. Verifiez que le dossier LGS est lie.";
+      return;
+    }
+    
+    const file = await fileInfo.handle.getFile();
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    
+    const standings = {};
+    const categorySheets = { "Resultat LGS (HOMME)": "HOMME", "Resultat LGS (DAME)": "DAME" };
+    
+    for (const [sheetName, category] of Object.entries(categorySheets)) {
+      if (!workbook.SheetNames.includes(sheetName)) continue;
+      
+      const sheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(sheet, { header: "A", defval: "" });
+      
+      const bySeriesAndTotal = {};
+      
+      data.forEach((row, rowIndex) => {
+        if (rowIndex === 0) return;
+        const name = row.B || "";
+        const series = row.E || "";
+        const dayScore = row.AD || "";
+        const dayScore2 = row.AE || "";
+        const finalScore = row.AF || "";
+        const finalScore2 = row.AH || "";
+        const totalScore = row.AJ || "";
+        const totalScore2 = row.AK || "";
+        
+        if (!name || !series || !totalScore) return;
+        
+        const total = parseFloat(totalScore) || parseFloat(totalScore2) || Infinity;
+        if (total === Infinity) return;
+        
+        const seriesKey = String(series).toLowerCase();
+        if (!bySeriesAndTotal[seriesKey]) bySeriesAndTotal[seriesKey] = [];
+        
+        bySeriesAndTotal[seriesKey].push({
+          name: String(name).trim(),
+          dayScore: String(dayScore).trim(),
+          dayScore2: String(dayScore2).trim(),
+          finalScore: String(finalScore).trim(),
+          finalScore2: String(finalScore2).trim(),
+          total,
+          totalScore: String(totalScore).trim(),
+          totalScore2: String(totalScore2).trim()
+        });
+      });
+      
+      standings[category] = bySeriesAndTotal;
+    }
+    
+    renderStandings(standings, fileInfo.name);
+  } catch (error) {
+    elements.standingsStatus.textContent = "Erreur : Impossible de lire le fichier Excel. Verifiez qu'il n'est pas ouvert.";
+    console.error(error);
+  }
+}
+
+function renderStandings(standings, fileName) {
+  elements.standingsContainer.innerHTML = "";
+  elements.standingsStatus.textContent = `Donnees de : ${fileName}`;
+  
+  const categories = ["HOMME", "DAME"];
+  
+  for (const category of categories) {
+    if (!standings[category] || Object.keys(standings[category]).length === 0) continue;
+    
+    const categoryDiv = document.createElement("div");
+    categoryDiv.className = "standings-category";
+    
+    const categoryTitle = document.createElement("h3");
+    categoryTitle.style.marginTop = "1.5rem";
+    categoryTitle.style.marginBottom = "0.8rem";
+    categoryTitle.textContent = category;
+    categoryDiv.appendChild(categoryTitle);
+    
+    const seriesData = standings[category];
+    const seriesNames = Object.keys(seriesData).sort();
+    
+    for (const seriesName of seriesNames) {
+      const players = seriesData[seriesName];
+      players.sort((a, b) => a.total - b.total);
+      const top5 = players.slice(0, 5);
+      
+      const seriesGroup = document.createElement("div");
+      seriesGroup.className = "series-group";
+      
+      const seriesTitle = document.createElement("div");
+      seriesTitle.className = "series-title";
+      seriesTitle.textContent = `Serie ${seriesName}`;
+      seriesGroup.appendChild(seriesTitle);
+      
+      top5.forEach((player, index) => {
+        const row = document.createElement("div");
+        row.className = "player-row";
+        
+        const rankCell = document.createElement("div");
+        rankCell.className = "rank";
+        rankCell.textContent = String(index + 1);
+        
+        const nameCell = document.createElement("div");
+        nameCell.className = "name";
+        nameCell.textContent = player.name;
+        
+        const dayScoreCell = document.createElement("div");
+        dayScoreCell.className = "score-cell";
+        dayScoreCell.innerHTML = `<span class="score-label">J: </span>${player.dayScore}${player.dayScore2 ? " " + player.dayScore2 : ""}`;
+        
+        const finalScoreCell = document.createElement("div");
+        finalScoreCell.className = "score-cell";
+        finalScoreCell.innerHTML = `<span class="score-label">F: </span>${player.finalScore}${player.finalScore2 ? " " + player.finalScore2 : ""}`;
+        
+        const totalCell = document.createElement("div");
+        totalCell.className = "score-cell";
+        totalCell.style.fontWeight = "700";
+        totalCell.innerHTML = `<span class="score-label">LGS: </span>${player.totalScore}${player.totalScore2 ? " " + player.totalScore2 : ""}`;
+        
+        row.appendChild(rankCell);
+        row.appendChild(nameCell);
+        row.appendChild(dayScoreCell);
+        row.appendChild(finalScoreCell);
+        row.appendChild(totalCell);
+        
+        seriesGroup.appendChild(row);
+      });
+      
+      categoryDiv.appendChild(seriesGroup);
+    }
+    
+    elements.standingsContainer.appendChild(categoryDiv);
+  }
+}
+
 document.querySelector("#new-season-button").addEventListener("click", () => {
   const nextYear = Math.max(...state.seasons.map((season) => season.year)) + 1;
   document.querySelector("#season-year").value = nextYear;
@@ -429,5 +596,6 @@ elements.deleteForm.addEventListener("submit", (event) => {
   elements.deleteDialog.close();
   render();
 });
+elements.refreshStandingsButton.addEventListener("click", refreshStandings);
 
 render();

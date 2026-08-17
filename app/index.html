@@ -58,6 +58,17 @@
 
       <section id="tour-grid" class="tour-grid" aria-label="Tours de la saison"></section>
 
+      <section class="standings-panel">
+        <div>
+          <p class="eyebrow">CLASSEMENT EN COURS</p>
+          <h2>Resultats du jour</h2>
+          <p>Affiche les 5 meilleurs scores par serie selon le dernier fichier disponible.</p>
+        </div>
+        <button class="button button-quiet" id="refresh-standings-button" type="button">Rafraîchir classement</button>
+        <div id="standings-container" class="standings-container"></div>
+        <p id="standings-status" class="standings-status"></p>
+      </section>
+
       <section class="notes-panel">
         <div>
           <p class="eyebrow">MEMO DE SAISON</p>
@@ -146,6 +157,7 @@
       </article>
     </template>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
     <script src="historical-data.js"></script>
     <script src="app.js"></script>
   </body>
