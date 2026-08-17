@@ -157,9 +157,9 @@ function renderTours(season) {
     openButton.title = openButton.disabled
       ? "Liez le dossier LGS pour ouvrir ce fichier."
       : `Ouvrir ${tour.file}`;
-    uploadButton.disabled = !linkedDirectoryHandles.has(season.id);
+    uploadButton.disabled = !window.showOpenFilePicker || !window.showDirectoryPicker;
     uploadButton.title = uploadButton.disabled
-      ? "Liez le dossier LGS pour ajouter un fichier."
+      ? "Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier."
       : `Ajouter un fichier dans ${tour.name}`;
     status.addEventListener("change", () => updateTour(tour.number, "status", status.value));
     file.addEventListener("change", () => {
@@ -212,14 +212,19 @@ async function openRmsFile(seasonId, tourNumber) {
 }
 
 async function addResultFile(seasonId, tourNumber) {
-  const root = linkedDirectoryHandles.get(seasonId);
+  let root = linkedDirectoryHandles.get(seasonId);
   const season = state.seasons.find((item) => item.id === seasonId);
   const tour = season?.tours.find((item) => item.number === tourNumber);
-  if (!root || !season || !tour || !window.showOpenFilePicker) {
-    alert("Liez le dossier LGS dans Edge ou Chrome avant d'ajouter un fichier.");
+  if (!season || !tour || !window.showOpenFilePicker) {
+    alert("Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier.");
     return;
   }
   try {
+    if (!root) {
+      const linked = await linkSeasonFolder();
+      if (!linked) return;
+      root = linkedDirectoryHandles.get(seasonId);
+    }
     const [sourceHandle] = await window.showOpenFilePicker({
       types: [{
         description: "Fichiers Excel",
@@ -287,7 +292,7 @@ function updateTour(number, key, value) {
 async function linkSeasonFolder() {
   if (!window.showDirectoryPicker) {
     alert("Utilisez Microsoft Edge ou Google Chrome pour lier un dossier LGS.");
-    return;
+    return false;
   }
   try {
     const root = await window.showDirectoryPicker({ mode: "readwrite" });
@@ -302,7 +307,7 @@ async function linkSeasonFolder() {
     }));
     if (!hasLgsStructure.every(Boolean)) {
       alert("Selectionnez le dossier LGS qui contient T1 a T7 et Finale.");
-      return;
+      return false;
     }
 
     const season = activeSeason();
@@ -333,8 +338,10 @@ async function linkSeasonFolder() {
     season.catalogMessage = "";
     render();
     elements.scanResult.textContent = `${detectedCount} fichiers Excel detectes dans ${root.name}.`;
+    return true;
   } catch (error) {
     if (error.name !== "AbortError") alert("La lecture du dossier LGS a echoue.");
+    return false;
   }
 }
 
