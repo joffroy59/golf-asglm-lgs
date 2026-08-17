@@ -18,6 +18,8 @@ See the [main project README](../readme.md) for the full RMS import procedure.
 
 The application stores season data in the browser's local storage. Use **Exporter la saison** to save `lgs-saison-<year>.json` in the corresponding `ASGLM <year>/LGS` directory. Import that file to restore the season on another computer or browser.
 
+Deleting a season never deletes Excel files. To prevent accidental removal of the local dashboard record, type the displayed year in the confirmation dialog.
+
 To link historic Excel data, select the relevant season then choose **Lier le dossier LGS**. In Microsoft Edge or Google Chrome, select `ASGLM <year>/LGS`; the application reads the `T1` to `T7` and `Finale` folders and records the spreadsheet names it finds. The files remain read-only and are never uploaded.
 
 For the pre-linked 2023, 2024, and 2025 archives, **Ouvrir le fichier RMS** opens the catalogued local file directly. For any other season, link its folder first; access granted by the browser is only retained for the current session.

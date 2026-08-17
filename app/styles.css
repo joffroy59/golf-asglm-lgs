@@ -25,7 +25,8 @@ h2 { margin-bottom: .35rem; font-size: 1.7rem; letter-spacing: -.035em; }
 .button:hover { transform: translateY(-2px); }
 .button-primary { color: var(--ink); background: var(--lime); }
 .button-quiet { border-color: var(--line); }
-.button-danger { border-color: #b74825; color: #a53d1e; }
+.button-danger { border-color: #aeb8b1; color: #66716a; background: #edf0ea; }
+.button-danger:not(:disabled):hover { border-color: #b74825; color: #a53d1e; background: #fff4ef; }
 .button-open { width: 100%; margin-top: .75rem; border-color: #8ca098; background: #edf0ea; font-size: .67rem; }
 .button:disabled { cursor: not-allowed; opacity: .48; transform: none; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; padding: 1.25rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }

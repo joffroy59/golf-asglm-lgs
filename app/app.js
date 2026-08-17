@@ -19,7 +19,13 @@ const elements = {
   scanResult: document.querySelector("#scan-result"),
   dialog: document.querySelector("#season-dialog"),
   form: document.querySelector("#season-form"),
-  importInput: document.querySelector("#import-input")
+  importInput: document.querySelector("#import-input"),
+  deleteDialog: document.querySelector("#delete-season-dialog"),
+  deleteForm: document.querySelector("#delete-season-form"),
+  deleteYearLabel: document.querySelector("#delete-year-label"),
+  deleteYearInput: document.querySelector("#delete-year-input"),
+  confirmDeleteButton: document.querySelector("#confirm-delete-button"),
+  deleteSeasonButton: document.querySelector("#delete-season-button")
 };
 
 function makeSeason(year, directory) {
@@ -120,6 +126,10 @@ function render() {
   elements.notes.value = season.notes;
   renderTours(season);
   renderProgress(season);
+  elements.deleteSeasonButton.disabled = state.seasons.length === 1;
+  elements.deleteSeasonButton.title = elements.deleteSeasonButton.disabled
+    ? "Conservez au moins une saison dans l'application."
+    : "Une confirmation par annee sera demandee.";
   saveState();
 }
 
@@ -329,11 +339,25 @@ elements.notes.addEventListener("change", () => { activeSeason().notes = element
 document.querySelector("#export-button").addEventListener("click", exportSeason);
 document.querySelector("#link-folder-button").addEventListener("click", linkSeasonFolder);
 elements.importInput.addEventListener("change", importSeason);
-document.querySelector("#delete-season-button").addEventListener("click", () => {
+elements.deleteSeasonButton.addEventListener("click", () => {
   const season = activeSeason();
-  if (state.seasons.length === 1 || !confirm(`Supprimer le suivi de la saison ${season.year} ?`)) return;
+  if (state.seasons.length === 1) return;
+  elements.deleteYearLabel.textContent = `Saisissez ${season.year} pour confirmer`;
+  elements.deleteYearInput.value = "";
+  elements.confirmDeleteButton.disabled = true;
+  elements.deleteDialog.showModal();
+});
+elements.deleteYearInput.addEventListener("input", () => {
+  elements.confirmDeleteButton.disabled = Number(elements.deleteYearInput.value) !== activeSeason().year;
+});
+document.querySelector("#cancel-delete-button").addEventListener("click", () => elements.deleteDialog.close());
+elements.deleteForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const season = activeSeason();
+  if (Number(elements.deleteYearInput.value) !== season.year) return;
   state.seasons = state.seasons.filter((item) => item.id !== season.id);
   state.activeId = state.seasons[0].id;
+  elements.deleteDialog.close();
   render();
 });
 

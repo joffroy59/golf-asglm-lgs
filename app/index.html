@@ -93,6 +93,20 @@
       </form>
     </dialog>
 
+    <dialog id="delete-season-dialog">
+      <form id="delete-season-form" method="dialog">
+        <p class="eyebrow">ACTION IRREVERSIBLE</p>
+        <h2>Supprimer cette saison ?</h2>
+        <p class="form-hint">Cette action supprime uniquement le suivi enregistre dans ce navigateur, jamais les fichiers Excel.</p>
+        <label id="delete-year-label" for="delete-year-input">Saisissez l'annee</label>
+        <input id="delete-year-input" type="number" inputmode="numeric" required />
+        <div class="dialog-actions">
+          <button class="button button-quiet" id="cancel-delete-button" type="button">Annuler</button>
+          <button class="button button-danger" id="confirm-delete-button" type="submit" disabled>Supprimer la saison</button>
+        </div>
+      </form>
+    </dialog>
+
     <template id="tour-template">
       <article class="tour-card">
         <div class="tour-heading">
