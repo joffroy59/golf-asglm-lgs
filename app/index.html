@@ -157,7 +157,15 @@
       </article>
     </template>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+      // Fallback if CDN fails
+      if (typeof XLSX === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js';
+        document.head.appendChild(script);
+      }
+    </script>
     <script src="historical-data.js"></script>
     <script src="app.js"></script>
   </body>

@@ -106,6 +106,7 @@ let state = loadState();
 const linkedFileHandles = new Map();
 const linkedDirectoryHandles = new Map();
 
+
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -400,56 +401,159 @@ function importSeason(event) {
 
 async function findLatestCalculFile() {
   const season = activeSeason();
-  if (!linkedDirectoryHandles.has(season.id)) return null;
+  if (!linkedDirectoryHandles.has(season.id)) {
+    console.log("❌ No linked directory for season:", season.id);
+    return null;
+  }
   
   const root = linkedDirectoryHandles.get(season.id);
-  const tourFolders = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "Finale"];
   const calcFiles = [];
+  
+  console.log("🔍 Scanning linked root:", root.name);
+  
+  // First check the root LGS directory
+  console.log("📁 Checking root directory");
+  for await (const entry of root.values()) {
+    console.log(`   Entry: ${entry.name} (${entry.kind})`);
+    
+    if (entry.kind === "file" && /\.xls[xm]?$/i.test(entry.name)) {
+      console.log(`      ✓ XLS file: ${entry.name}`);
+      
+      // Check if it matches our pattern
+      if (/Calcul La Grande Semaine/i.test(entry.name) && /HOMME_OU_DAME/i.test(entry.name)) {
+        console.log(`        🎯 MATCH: Adding to calcFiles`);
+        calcFiles.push({ folder: "root", handle: entry, name: entry.name });
+      }
+    }
+  }
+  
+  // Then check the tour folders
+  const tourFolders = ["Finale", "T7", "T6", "T5", "T4", "T3", "T2", "T1"];
   
   for (const folderName of tourFolders) {
     try {
       const folder = await root.getDirectoryHandle(folderName);
+      console.log(`📁 Checking folder: ${folderName}`);
+      const filesInFolder = [];
+      
       for await (const entry of folder.values()) {
-        if (entry.kind === "file" && /^Calcul La Grande Semaine.*HOMME_OU_DAME_v[\d.]+\.xlsm?$/i.test(entry.name)) {
-          calcFiles.push({ folder: folderName, handle: entry, name: entry.name });
+        console.log(`   Entry: ${entry.name} (${entry.kind})`);
+        
+        if (entry.kind === "file" && /\.xls[xm]?$/i.test(entry.name)) {
+          filesInFolder.push(entry.name);
+          console.log(`      ✓ XLS file: ${entry.name}`);
+          
+          // Check if it matches our pattern
+          if (/Calcul La Grande Semaine/i.test(entry.name) && /HOMME_OU_DAME/i.test(entry.name)) {
+            console.log(`        🎯 MATCH: Adding to calcFiles`);
+            calcFiles.push({ folder: folderName, handle: entry, name: entry.name });
+          }
         }
       }
-    } catch (_) {}
+      
+      if (filesInFolder.length === 0) {
+        console.log(`   (empty folder)`);
+      }
+    } catch (error) {
+      console.log(`⚠️  Could not access ${folderName}:`, error.message);
+    }
   }
   
-  return calcFiles.length > 0 ? calcFiles[calcFiles.length - 1] : null;
+  console.log("✅ Total calc files found:", calcFiles.length);
+  if (calcFiles.length > 0) {
+    console.log("   All files found:", calcFiles.map(f => f.name).join(", "));
+    
+    // Priority 1: Look for Finale file
+    const finaleFile = calcFiles.find(f => f.name.includes("Finale"));
+    if (finaleFile) {
+      console.log("   Selected: Finale file:", finaleFile.name, "from", finaleFile.folder);
+      return finaleFile;
+    }
+    
+    // Priority 2: Use the last file (highest tour number)
+    const lastFile = calcFiles[calcFiles.length - 1];
+    console.log("   Selected: Latest tour file:", lastFile.name, "from", lastFile.folder);
+    return lastFile;
+  }
+  
+  return null;
 }
 
 async function refreshStandings() {
   elements.standingsStatus.textContent = "Chargement en cours...";
   elements.standingsContainer.innerHTML = "";
   
+  console.log("=== Starting refreshStandings ===");
+  
   try {
-    const fileInfo = await findLatestCalculFile();
+    const season = activeSeason();
+    let fileInfo = await findLatestCalculFile();
+    
     if (!fileInfo) {
-      elements.standingsStatus.textContent = "Aucun fichier Calcul La Grande Semaine trouve. Verifiez que le dossier LGS est lie.";
-      return;
+      const hasLinked = linkedDirectoryHandles.has(season.id);
+      console.log("No file found. Linked:", hasLinked);
+      
+      if (!hasLinked) {
+        // Try to automatically link the folder
+        console.log("Attempting to auto-link folder...");
+        elements.standingsStatus.textContent = "Liaison du dossier LGS en cours...";
+        
+        const linked = await linkSeasonFolder();
+        if (!linked) {
+          elements.standingsStatus.innerHTML = `<strong>Aucun fichier trouve.</strong><br>La liaison au dossier LGS a ete perdue (rechargement de page?). Cliquez sur "Lier le dossier LGS" pour reconnecter, puis revenez ici.`;
+          return;
+        }
+        
+        // Try again after linking
+        fileInfo = await findLatestCalculFile();
+      }
+      
+      if (!fileInfo) {
+        elements.standingsStatus.textContent = "Aucun fichier Calcul La Grande Semaine trouve. Verifiez que le dossier LGS contient des fichiers *HOMME_OU_DAME*.xlsm. Consultez la console (F12) pour les details.";
+        return;
+      }
     }
+    
+    console.log("Reading file:", fileInfo.name, "from folder:", fileInfo.folder);
     
     const file = await fileInfo.handle.getFile();
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
     
+    console.log("Workbook sheets:", workbook.SheetNames);
+    
     const standings = {};
     const categorySheets = { "Resultat LGS (HOMME)": "HOMME", "Resultat LGS (DAME)": "DAME" };
+    const isFinaleFile = fileInfo.name.toLowerCase().includes("finale");
     
+    let sheetsFound = 0;
     for (const [sheetName, category] of Object.entries(categorySheets)) {
-      if (!workbook.SheetNames.includes(sheetName)) continue;
+      if (!workbook.SheetNames.includes(sheetName)) {
+        console.log(`Sheet not found: ${sheetName}`);
+        continue;
+      }
       
+      console.log(`Processing sheet: ${sheetName}, Finale file: ${isFinaleFile}`);
+      sheetsFound++;
       const sheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(sheet, { header: "A", defval: "" });
       
+      console.log(`Data rows in ${sheetName}:`, data.length);
+      
       const bySeriesAndTotal = {};
+      let validRecords = 0;
+      let skippedRecords = 0;
       
       data.forEach((row, rowIndex) => {
+        // Skip first row (metadata)
         if (rowIndex === 0) return;
-        const name = row.B || "";
+        
+        // Extract name from column B
+        const name = String(row.B || "").trim();
+        
+        // Series is in column E
         const series = row.E || "";
+        
         const dayScore = row.AD || "";
         const dayScore2 = row.AE || "";
         const finalScore = row.AF || "";
@@ -457,27 +561,48 @@ async function refreshStandings() {
         const totalScore = row.AJ || "";
         const totalScore2 = row.AK || "";
         
-        if (!name || !series || !totalScore) return;
+        // Skip placeholder/header rows
+        if (name === "Nom - Prénom" || name === "Nom - prenom" || !name || !series || !totalScore) {
+          skippedRecords++;
+          return;
+        }
         
-        const total = parseFloat(totalScore) || parseFloat(totalScore2) || Infinity;
-        if (total === Infinity) return;
+        // For Finale file: exclude players without final day score (show "En cours")
+        if (isFinaleFile) {
+          const hasFinalScore = finalScore && finalScore !== "En cours" && finalScore !== "";
+          if (!hasFinalScore) {
+            skippedRecords++;
+            console.log(`Skipping ${name} (Finale): no final day score`);
+            return;
+          }
+        }
         
+        validRecords++;
+        
+        // Use series as key
         const seriesKey = String(series).toLowerCase();
         if (!bySeriesAndTotal[seriesKey]) bySeriesAndTotal[seriesKey] = [];
         
         bySeriesAndTotal[seriesKey].push({
-          name: String(name).trim(),
+          name,
+          series: String(series).trim(),
           dayScore: String(dayScore).trim(),
           dayScore2: String(dayScore2).trim(),
           finalScore: String(finalScore).trim(),
           finalScore2: String(finalScore2).trim(),
-          total,
+          total: parseFloat(totalScore) || 0,
           totalScore: String(totalScore).trim(),
           totalScore2: String(totalScore2).trim()
         });
       });
       
+      console.log(`${sheetName}: ${validRecords} valid, ${skippedRecords} skipped, series found: ${Object.keys(bySeriesAndTotal).sort().join(", ")}`);
       standings[category] = bySeriesAndTotal;
+    }
+    
+    if (sheetsFound === 0) {
+      elements.standingsStatus.textContent = `Erreur : Les feuilles "Resultat LGS (HOMME)" et "Resultat LGS (DAME)" n'ont pas ete trouvees dans ${fileInfo.name}. Verifiez le nom des onglets du classement.`;
+      return;
     }
     
     renderStandings(standings, fileInfo.name);
@@ -535,16 +660,16 @@ function renderStandings(standings, fileName) {
         
         const dayScoreCell = document.createElement("div");
         dayScoreCell.className = "score-cell";
-        dayScoreCell.innerHTML = `<span class="score-label">J: </span>${player.dayScore}${player.dayScore2 ? " " + player.dayScore2 : ""}`;
+        dayScoreCell.innerHTML = `<div class="score-label">Meilleur tour</div><div class="score-value">${player.dayScore}${player.dayScore2 ? " " + player.dayScore2 : ""}</div>`;
         
         const finalScoreCell = document.createElement("div");
         finalScoreCell.className = "score-cell";
-        finalScoreCell.innerHTML = `<span class="score-label">F: </span>${player.finalScore}${player.finalScore2 ? " " + player.finalScore2 : ""}`;
+        finalScoreCell.innerHTML = `<div class="score-label">Finale</div><div class="score-value">${player.finalScore}${player.finalScore2 ? " " + player.finalScore2 : ""}</div>`;
         
         const totalCell = document.createElement("div");
         totalCell.className = "score-cell";
         totalCell.style.fontWeight = "700";
-        totalCell.innerHTML = `<span class="score-label">LGS: </span>${player.totalScore}${player.totalScore2 ? " " + player.totalScore2 : ""}`;
+        totalCell.innerHTML = `<div class="score-label">Total LGS</div><div class="score-value">${player.totalScore}${player.totalScore2 ? " " + player.totalScore2 : ""}</div>`;
         
         row.appendChild(rankCell);
         row.appendChild(nameCell);
