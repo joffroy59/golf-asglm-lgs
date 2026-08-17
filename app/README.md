@@ -20,6 +20,10 @@ The application stores season data in the browser's local storage. Use **Exporte
 
 To link historic Excel data, select the relevant season then choose **Lier le dossier LGS**. In Microsoft Edge or Google Chrome, select `ASGLM <year>/LGS`; the application reads the `T1` to `T7` and `Finale` folders and records the spreadsheet names it finds. The files remain read-only and are never uploaded.
 
+For the pre-linked 2023, 2024, and 2025 archives, **Ouvrir le fichier RMS** opens the catalogued local file directly. For any other season, link its folder first; access granted by the browser is only retained for the current session.
+
+The 2023, 2024, and 2025 seasons are pre-linked to the export inventories currently stored in their `ASGLM <year>/LGS` folders. Use **Lier le dossier LGS** again when a folder changes or when using a different copy of an archive.
+
 ## Scope
 
 This first version tracks each season's eight events (`Tour 1` to `Tour 7` and `Finale`), RMS export file references, validation status, and season notes. Excel/VBA calculation remains the source of truth for scores and rankings.

@@ -41,13 +41,31 @@ function makeSeason(year, directory) {
 function loadState() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (parsed?.seasons?.length) return addHistoricalSeasons(parsed);
+    if (parsed?.seasons?.length) return prepareState(parsed);
   } catch (_) {
     // A corrupted local record is replaced with a clean first season.
   }
-  const year = new Date().getFullYear();
-  const season = makeSeason(year, `..\\ASGLM ${year}\\LGS`);
-  return addHistoricalSeasons({ activeId: season.id, seasons: [season] });
+  return prepareState({ activeId: "", seasons: [] });
+}
+
+function prepareState(savedState) {
+  savedState.migrations ||= {};
+  if (!savedState.migrations.removedUninitialized2026) {
+    savedState.seasons = savedState.seasons.filter((season) => !isUninitialized2026(season));
+    savedState.migrations.removedUninitialized2026 = true;
+  }
+  addHistoricalSeasons(savedState);
+  if (!savedState.seasons.some((season) => season.id === savedState.activeId)) {
+    savedState.activeId = savedState.seasons.find((season) => season.year === 2025)?.id || savedState.seasons[0]?.id;
+  }
+  return savedState;
+}
+
+function isUninitialized2026(season) {
+  return season.year === 2026
+    && season.directory === "..\\ASGLM 2026\\LGS"
+    && !season.notes
+    && season.tours.every((tour) => !tour.file && !tour.note && tour.status === "planned");
 }
 
 function addHistoricalSeasons(savedState) {
@@ -56,10 +74,27 @@ function addHistoricalSeasons(savedState) {
       savedState.seasons.push(makeSeason(year, `..\\ASGLM ${year}\\LGS`));
     }
   });
+  Object.entries(window.LGS_HISTORICAL_SEASON_DATA || {}).forEach(([year, catalog]) => {
+    const historicSeason = savedState.seasons.find((season) => season.year === Number(year));
+    const canApplyCatalog = historicSeason?.tours.every((tour) => (
+      !tour.sourceFiles?.length && !tour.file && !tour.note && tour.status === "planned"
+    ));
+    if (historicSeason && canApplyCatalog && !historicSeason.lastScan && !historicSeason.catalogMessage) {
+      historicSeason.directory = catalog.directory;
+      historicSeason.tours.forEach((tour) => {
+        const files = catalog.tours[tour.number] || [];
+        tour.sourceFiles = files;
+        tour.file = files[0] || "";
+        if (files.length) tour.status = "imported";
+      });
+      historicSeason.catalogMessage = catalog.message;
+    }
+  });
   return savedState;
 }
 
 let state = loadState();
+const linkedFileHandles = new Map();
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -78,9 +113,10 @@ function render() {
     .map((item) => new Option(String(item.year), item.id, false, item.id === season.id)));
   elements.seasonTitle.textContent = `Saison ${season.year}`;
   elements.seasonPath.textContent = season.directory;
-  elements.scanResult.textContent = season.lastScan
-    ? `Derniere analyse : ${new Date(season.lastScan).toLocaleDateString("fr-FR")}`
-    : "Aucun dossier LGS analyse pour cette saison.";
+  elements.scanResult.textContent = season.catalogMessage
+    || (season.lastScan
+      ? `Derniere analyse : ${new Date(season.lastScan).toLocaleDateString("fr-FR")}`
+      : "Aucun dossier LGS analyse pour cette saison.");
   elements.notes.value = season.notes;
   renderTours(season);
   renderProgress(season);
@@ -100,15 +136,62 @@ function renderTours(season) {
     const file = card.querySelector(".tour-file");
     const note = card.querySelector(".tour-note");
     const sourceSummary = card.querySelector(".source-summary");
+    const openButton = card.querySelector(".open-rms-button");
     status.value = tour.status;
     file.value = tour.file;
     note.value = tour.note;
     sourceSummary.textContent = sourceLabel(tour.sourceFiles || []);
+    openButton.disabled = !canOpenTourFile(season, tour);
+    openButton.title = openButton.disabled
+      ? "Liez le dossier LGS pour ouvrir ce fichier."
+      : `Ouvrir ${tour.file}`;
     status.addEventListener("change", () => updateTour(tour.number, "status", status.value));
-    file.addEventListener("change", () => updateTour(tour.number, "file", file.value.trim()));
+    file.addEventListener("change", () => {
+      linkedFileHandles.delete(fileHandleKey(season.id, tour.number));
+      updateTour(tour.number, "file", file.value.trim());
+    });
     note.addEventListener("change", () => updateTour(tour.number, "note", note.value.trim()));
+    openButton.addEventListener("click", () => openRmsFile(season.id, tour.number));
     return card;
   }));
+}
+
+function fileHandleKey(seasonId, tourNumber) {
+  return `${seasonId}:${tourNumber}`;
+}
+
+function canOpenTourFile(season, tour) {
+  return linkedFileHandles.has(fileHandleKey(season.id, tour.number)) || Boolean(knownRmsHref(season, tour));
+}
+
+function knownRmsHref(season, tour) {
+  const catalog = window.LGS_HISTORICAL_SEASON_DATA?.[season.year];
+  const knownFiles = catalog?.tours?.[tour.number] || [];
+  if (!knownFiles.includes(tour.file)) return "";
+  const folderName = tour.name === "Finale" ? "Finale" : `T${tour.number}`;
+  const parts = ["..", "..", `ASGLM ${season.year}`, "LGS", folderName, tour.file];
+  return parts.map(encodeURIComponent).join("/");
+}
+
+async function openRmsFile(seasonId, tourNumber) {
+  const handle = linkedFileHandles.get(fileHandleKey(seasonId, tourNumber));
+  const season = state.seasons.find((item) => item.id === seasonId);
+  const tour = season?.tours.find((item) => item.number === tourNumber);
+  if (!tour) return;
+  try {
+    const url = handle
+      ? URL.createObjectURL(await handle.getFile())
+      : knownRmsHref(season, tour);
+    if (!url) return;
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.target = "_blank";
+    anchor.rel = "noopener";
+    anchor.click();
+    if (handle) setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (_) {
+    alert("Le fichier RMS ne peut plus etre ouvert. Reliez le dossier LGS puis reessayez.");
+  }
 }
 
 function sourceLabel(files) {
@@ -156,21 +239,26 @@ async function linkSeasonFolder() {
     for (const tour of season.tours) {
       const folderName = tour.name === "Finale" ? "Finale" : `T${tour.number}`;
       const folder = await root.getDirectoryHandle(folderName);
-      const files = [];
+      linkedFileHandles.delete(fileHandleKey(season.id, tour.number));
+      const fileEntries = [];
       for await (const entry of folder.values()) {
-        if (entry.kind === "file" && /\.xls[xm]?$/i.test(entry.name)) files.push(entry.name);
+        if (entry.kind === "file" && /\.xls[xm]?$/i.test(entry.name)) fileEntries.push(entry);
       }
-      files.sort((first, second) => first.localeCompare(second, "fr"));
+      fileEntries.sort((first, second) => first.name.localeCompare(second.name, "fr"));
+      const files = fileEntries.map((entry) => entry.name);
       tour.sourceFiles = files;
       if (files.length) {
         detectedCount += files.length;
-        tour.file = files.find((name) => /extraction/i.test(name)) || files[0];
+        const rmsFile = fileEntries.find((entry) => /extraction/i.test(entry.name)) || fileEntries[0];
+        tour.file = rmsFile.name;
+        linkedFileHandles.set(fileHandleKey(season.id, tour.number), rmsFile);
         if (files.some((name) => /\.xlsx?$/i.test(name))) tour.status = "imported";
         else if (tour.status === "planned") tour.status = "ready";
       }
     }
     season.directory = `Dossier lie : ${root.name}`;
     season.lastScan = new Date().toISOString();
+    season.catalogMessage = "";
     render();
     elements.scanResult.textContent = `${detectedCount} fichiers Excel detectes dans ${root.name}.`;
   } catch (error) {
