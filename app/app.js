@@ -1098,9 +1098,9 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       const nearestPanel = group.closest(".standings-tab-panel");
       if (nearestPanel) {
         const panelRect = nearestPanel.getBoundingClientRect();
-        // Scroll with -160px offset to show "Résultats du jour" header and all descriptive text
+        // Scroll with -200px offset to show "CLASSEMENT EN COURS", "Résultats du jour" header, description, and tabs
         window.scrollTo({
-          top: window.scrollY + panelRect.top - 160,
+          top: window.scrollY + panelRect.top - 200,
           behavior: "smooth"
         });
       }
