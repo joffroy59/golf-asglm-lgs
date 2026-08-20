@@ -914,17 +914,13 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         const row = document.createElement("div");
         row.className = "section-nav-group";
 
-        const sectionLink = document.createElement("a");
-        sectionLink.href = "#" + h.id;
-        sectionLink.className = "section-nav-link section-nav-header";
-        if (/NET/i.test(h.textContent)) sectionLink.classList.add("section-nav-net");
-        if (/BRUT/i.test(h.textContent)) sectionLink.classList.add("section-nav-brut");
-        sectionLink.textContent = h.textContent;
-        sectionLink.addEventListener("click", e => {
-          e.preventDefault();
-          h.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-        row.appendChild(sectionLink);
+        // Create non-clickable label for NET/BRUT
+        const headerLabel = document.createElement("span");
+        headerLabel.className = "section-nav-header";
+        if (/NET/i.test(h.textContent)) headerLabel.classList.add("section-nav-net");
+        if (/BRUT/i.test(h.textContent)) headerLabel.classList.add("section-nav-brut");
+        headerLabel.textContent = h.textContent;
+        row.appendChild(headerLabel);
 
         // Series chips under this header
         let sib = h.nextElementSibling;

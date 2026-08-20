@@ -114,12 +114,9 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
 .section-nav-groups { display: flex; flex-direction: column; gap: .3rem; flex: 1; }
 .section-nav-group { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .35rem; }
 .section-nav-link { font-family: "Courier New", monospace; text-decoration: none; transition: border-color .12s, background .12s, color .12s; }
-.section-nav-header { font-size: .74rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--card); background: var(--green); padding: .22rem .62rem; border: 1px solid var(--green); white-space: nowrap; box-shadow: 0 1px 0 rgba(0,0,0,.1); }
-.section-nav-header:hover { background: #0f3a2f; border-color: #0f3a2f; color: var(--lime); }
+.section-nav-header { font-size: .74rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--card); background: var(--green); padding: .22rem .62rem; border: 1px solid var(--green); white-space: nowrap; box-shadow: 0 1px 0 rgba(0,0,0,.1); cursor: default; }
 .section-nav-header.section-nav-net { background: #1c6b57; border-color: #1c6b57; color: #f8fff9; }
 .section-nav-header.section-nav-brut { background: #5b3a1b; border-color: #5b3a1b; color: #fff8f0; }
-.section-nav-header.section-nav-net:hover { background: #145646; border-color: #145646; color: #dff9b9; }
-.section-nav-header.section-nav-brut:hover { background: #4a2f15; border-color: #4a2f15; color: #ffe2bf; }
 .section-nav-series { font-size: .66rem; font-weight: 400; letter-spacing: .01em; color: var(--green); background: transparent; padding: .15rem .45rem; border: 1px solid var(--line); }
 .section-nav-series:hover { border-color: var(--green); background: var(--lime); color: var(--ink); }
 .tour-subtabs { display: flex; gap: .35rem; margin: .6rem 0 .8rem; }
