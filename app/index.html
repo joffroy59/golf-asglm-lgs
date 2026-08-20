@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Suivi multi-annees de La Grande Semaine" />
+    <title>LGS | Gestion des saisons</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">ASGLM / LA GRANDE SEMAINE</p>
+        <div class="hero-row">
+          <div>
+            <h1>Le fil des saisons.</h1>
+            <p class="intro">Centralisez le suivi des tours, des imports RMS et des classements LGS, annee apres annee.</p>
+          </div>
+          <button class="button button-primary" id="new-season-button" type="button">Nouvelle saison</button>
+        </div>
+      </header>
+
+      <section class="external-links" aria-label="Ressources externes">
+        <a href="https://www.asglm.fr" target="_blank" rel="noopener" class="link-button">
+          <span>Site ASGLM</span>
+        </a>
+        <a href="https://pages.ffgolf.org/departs/golf/4754843826f01261f7c03b6925dc6797" target="_blank" rel="noopener" class="link-button">
+          <span>Heures de départs</span>
+        </a>
+        <a href="https://pages.ffgolf.org/resultats/liste-competitions/4754843826f01261f7c03b6925dc6797" target="_blank" rel="noopener" class="link-button">
+          <span>Résultats</span>
+        </a>
+      </section>
+
+      <section class="controls" aria-label="Selection de la saison">
+        <label for="season-select">Saison active</label>
+        <select id="season-select"></select>
+        <button class="button button-quiet" id="export-button" type="button">Exporter la saison</button>
+        <label class="button button-quiet import-label" for="import-input">Importer un fichier JSON</label>
+        <input id="import-input" type="file" accept="application/json,.json" />
+      </section>
+
+      <section class="season-overview" aria-labelledby="season-title">
+        <div>
+          <p class="eyebrow">TABLEAU DE BORD</p>
+          <h2 id="season-title"></h2>
+          <p id="season-path" class="path"></p>
+          <p id="scan-result" class="scan-result"></p>
+        </div>
+        <div class="season-actions">
+          <button class="button button-quiet" id="link-folder-button" type="button">Lier le dossier LGS</button>
+          <div class="progress-block">
+            <span id="progress-label"></span>
+            <div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tour-grid" class="tour-grid" aria-label="Tours de la saison"></section>
+
+      <section class="standings-panel">
+        <div>
+          <p class="eyebrow">CLASSEMENT EN COURS</p>
+          <h2>Resultats du jour</h2>
+          <p>Affiche les 5 meilleurs scores par serie selon le dernier fichier disponible.</p>
+        </div>
+        <button class="button button-quiet" id="refresh-standings-button" type="button">Rafraîchir classement</button>
+        <div id="standings-container" class="standings-container"></div>
+        <p id="standings-status" class="standings-status"></p>
+      </section>
+
+      <section class="notes-panel">
+        <div>
+          <p class="eyebrow">MEMO DE SAISON</p>
+          <h2>Points a retenir</h2>
+        </div>
+        <textarea id="season-notes" rows="5" placeholder="Ex. Controle des series Dames termine avant la Finale..."></textarea>
+      </section>
+
+      <section class="setup-panel" aria-labelledby="setup-title">
+        <div>
+          <p class="eyebrow">NOUVELLE ANNEE</p>
+          <h2 id="setup-title">Initialiser une saison</h2>
+          <p>Pour le detail des imports RMS et du traitement des resultats, consultez la <a href="../readme.md" target="_blank" rel="noopener">documentation complete</a>.</p>
+        </div>
+        <ol>
+          <li>Creez le dossier parent <code>..\ASGLM 2026</code>.</li>
+          <li>Depuis ce depot, lancez <code>initYear.bat</code> et saisissez <code>2026</code>.</li>
+          <li>Dans cette application, creez la saison puis liez <code>..\ASGLM 2026\LGS</code>.</li>
+        </ol>
+      </section>
+
+      <section class="archive-panel">
+        <div>
+          <p class="eyebrow">ARCHIVES</p>
+          <h2>Gestion de la saison</h2>
+          <p>Les donnees sont enregistrees localement dans ce navigateur. Exportez la saison avant de changer de poste.</p>
+        </div>
+        <button class="button button-danger" id="delete-season-button" type="button">Supprimer cette saison</button>
+      </section>
+    </main>
+
+    <dialog id="season-dialog">
+      <form id="season-form" method="dialog">
+        <p class="eyebrow">NOUVELLE SAISON</p>
+        <h2>Preparer une annee LGS</h2>
+        <label for="season-year">Annee</label>
+        <input id="season-year" name="year" type="number" min="2000" max="2100" required />
+        <label for="season-directory">Dossier de travail</label>
+        <input id="season-directory" name="directory" type="text" placeholder="..\\ASGLM 2026\\LGS" required />
+        <p class="form-hint">Creez ensuite ce dossier avec <code>initYear.bat</code>. Le chemin sert de repere dans le tableau de bord.</p>
+        <div class="dialog-actions">
+          <button class="button button-quiet" id="cancel-dialog-button" type="button">Annuler</button>
+          <button class="button button-primary" type="submit">Creer la saison</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="delete-season-dialog">
+      <form id="delete-season-form" method="dialog">
+        <p class="eyebrow">ACTION IRREVERSIBLE</p>
+        <h2>Supprimer cette saison ?</h2>
+        <p class="form-hint">Cette action supprime uniquement le suivi enregistre dans ce navigateur, jamais les fichiers Excel.</p>
+        <label id="delete-year-label" for="delete-year-input">Saisissez l'annee</label>
+        <input id="delete-year-input" type="number" inputmode="numeric" required />
+        <div class="dialog-actions">
+          <button class="button button-quiet" id="cancel-delete-button" type="button">Annuler</button>
+          <button class="button button-danger" id="confirm-delete-button" type="submit" disabled>Supprimer la saison</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="tour-template">
+      <article class="tour-card">
+        <div class="tour-heading">
+          <p class="tour-number"></p>
+          <span class="status-pill"></span>
+        </div>
+        <h3 class="tour-name"></h3>
+        <label>Statut
+          <select class="tour-status">
+            <option value="planned">A preparer</option>
+            <option value="ready">Export pret</option>
+            <option value="imported">Import realise</option>
+            <option value="validated">Valide</option>
+          </select>
+        </label>
+        <label>Fichier RMS
+          <input class="tour-file" type="text" placeholder="2d. Extraction XLS globale.xls" />
+        </label>
+        <button class="button button-upload upload-xls-button" type="button" disabled>Ajouter fichier XLS</button>
+        <button class="button button-open open-rms-button" type="button" disabled>Ouvrir le fichier RMS</button>
+        <p class="source-summary"></p>
+        <label>Note
+          <input class="tour-note" type="text" placeholder="Commentaire du tour" />
+        </label>
+      </article>
+    </template>
+
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+      // Fallback if CDN fails
+      if (typeof XLSX === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js';
+        document.head.appendChild(script);
+      }
+    </script>
+    <script src="historical-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

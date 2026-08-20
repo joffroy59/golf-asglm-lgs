@@ -2,6 +2,10 @@
 
 une application Excel pour gérer le calcul des score de LGS
 
+## 🌐 Browser Dashboard
+
+A companion web application (`app/index.html`) tracks seasons across multiple years without modifying Excel files. See [app/README.md](app/README.md) for complete documentation and [app/architecture.mmd](app/architecture.mmd) for the data flow diagram.
+
 ## Installation pour une nouvelle Année
 
 Lancer
