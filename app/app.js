@@ -792,7 +792,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
   }
 
   const tabs = [
-    { id: "best", label: "Classement" },
+    { id: "best", label: "Top 10" },
     ...toursWithData.map(t => ({ id: t, label: withDate(t, t) })),
     { id: "all",  label: "Tout" }
   ];
@@ -806,7 +806,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
   elements.standingsContainer.appendChild(tabBar);
 
   // Track active tab label for the PDF title
-  let activeTabLabel = tabs[0]?.label ?? "Classement";
+  let activeTabLabel = tabs[0]?.label ?? "Top 10";
 
   const panels = {};
   tabs.forEach((tab, i) => {
@@ -961,7 +961,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
       ];
       appendTypeSection(
-        panels["best"], `Classement ${scoreType}`, seriesNames, seriesData, scoreType,
+        panels["best"], `Top 10 ${scoreType}`, seriesNames, seriesData, scoreType,
         (arr, t) => sortedWithTies(arr.filter(p => p.type === t), 10),
         totalCols
       );
