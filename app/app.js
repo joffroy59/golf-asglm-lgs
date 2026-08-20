@@ -1114,7 +1114,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     return raw;
   }
 
-  function makeSeriesGroup(seriesName, players, cols, sectionLabel) {
+  function makeSeriesGroup(seriesName, players, cols, sectionLabel, combinedRankingGroup = null) {
     const group = document.createElement("div");
     group.className = "series-group";
     // Unique anchor id: section label + series name
@@ -1147,8 +1147,11 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       }
     });
 
+    // Use combinedRankingGroup for ranking if provided (for series 3-4), otherwise use current series players
+    const rankingGroup = combinedRankingGroup || players;
+
     players.forEach(player => {
-      group.appendChild(makePlayerRow(player, trueRank(player, players), cols, bestScores));
+      group.appendChild(makePlayerRow(player, trueRank(player, rankingGroup), cols, bestScores));
     });
 
     // Back-to-top link
@@ -1174,13 +1177,43 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     return group;
   }
 
+  // Helper: check if two series should have shared ranking (series 3-4 per tournament rules)
+  function shouldGroupSeries(s1, s2) {
+    const n1 = String(s1).toLowerCase().trim();
+    const n2 = String(s2).toLowerCase().trim();
+    // Series 3 and 4 share common ranking
+    return (n1 === "3" && n2 === "4") || (n1 === "4" && n2 === "3");
+  }
+
   function appendTypeSection(panel, label, seriesNames, seriesData, scoreType, getPlayers, cols) {
     let added = false;
+    const processedSeries = new Set();
+
     for (const sn of seriesNames) {
-      const arr = seriesData[sn];
-      if (!arr) { console.warn("appendTypeSection: no data for series", sn); continue; }
-      const players = getPlayers(arr, scoreType);
-      if (!players || players.length === 0) continue;
+      if (processedSeries.has(sn)) continue; // Already processed as part of a group
+
+      // Check if this is series 3 or 4 and has a pair
+      let groupedSeries = [sn];
+      if ((sn === "3" || sn === "4") && seriesNames.includes(sn === "3" ? "4" : "3")) {
+        // Combine series 3 and 4 for ranking
+        const otherSeries = sn === "3" ? "4" : "3";
+        groupedSeries = [sn, otherSeries].sort();
+        processedSeries.add(otherSeries);
+      }
+
+      // Get all players from grouped series
+      const allGroupPlayers = [];
+      for (const seriesKey of groupedSeries) {
+        const arr = seriesData[seriesKey];
+        if (!arr) { console.warn("appendTypeSection: no data for series", seriesKey); continue; }
+        const players = getPlayers(arr, scoreType);
+        if (players && players.length > 0) {
+          allGroupPlayers.push(...players.map(p => ({ ...p, _seriesKey: seriesKey })));
+        }
+      }
+
+      if (allGroupPlayers.length === 0) continue;
+
       if (!added) {
         const h = document.createElement("div");
         h.className = "score-type-header";
@@ -1190,11 +1223,34 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         panel.appendChild(h);
         added = true;
       }
-      console.log(`📊 Serie ${sn} ${scoreType} (${label}):`, {
-        totalPlayers: players.length,
-        top: players.map(p => ({ name: p.name, total: p.total }))
+
+      // Sort combined group for shared ranking
+      const sortedGroup = [...allGroupPlayers].sort((a, b) => {
+        const d = a.total - b.total;
+        return d !== 0 ? d : a.name.localeCompare(b.name);
       });
-      panel.appendChild(makeSeriesGroup(sn, players, cols, label));
+
+      // Render each series separately but with shared ranking
+      for (const seriesKey of groupedSeries) {
+        const seriesPlayers = sortedGroup.filter(p => p._seriesKey === seriesKey)
+          .map(p => {
+            // Remove the temporary _seriesKey property
+            const { _seriesKey, ...clean } = p;
+            return clean;
+          });
+
+        if (seriesPlayers.length === 0) continue;
+
+        console.log(`📊 Serie ${seriesKey} ${scoreType} (${label}):`, {
+          totalPlayers: seriesPlayers.length,
+          sharedRanking: groupedSeries.length > 1,
+          top: seriesPlayers.map(p => ({ name: p.name, total: p.total }))
+        });
+
+        panel.appendChild(makeSeriesGroup(seriesKey, seriesPlayers, cols, label, sortedGroup));
+      }
+
+      processedSeries.add(sn);
     }
     if (!added) console.log(`appendTypeSection: nothing rendered for "${label}", scoreType=${scoreType}, seriesNames=`, seriesNames);
   }
