@@ -1080,13 +1080,13 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     topLink.textContent = "↑ Haut";
     topLink.addEventListener("click", e => {
       e.preventDefault();
-      // Scroll to show the header of current tab panel with context
+      // Scroll to show the full header of current tab panel with all context
       const nearestPanel = group.closest(".standings-tab-panel");
       if (nearestPanel) {
         const panelRect = nearestPanel.getBoundingClientRect();
-        // Scroll with -120px offset to show header title and description above tabs
+        // Scroll with -160px offset to show "Résultats du jour" header and all descriptive text
         window.scrollTo({
-          top: window.scrollY + panelRect.top - 120,
+          top: window.scrollY + panelRect.top - 160,
           behavior: "smooth"
         });
       }
