@@ -128,3 +128,10 @@ Keep **Excel calculations** (scores, rankings, nets) separate from **app metadat
 - **Dashboard** — [`app/`](<app>)
 - **Pre-commit Hook** — [`.hooks/pre-commit.py`](<.hooks/pre-commit.py>)
 - **Documentation** — [`AGENTS.md`](<AGENTS.md>) (repository guidelines), [`git.md`](<git.md>) (VBA export details)
+
+<!-- mermaid-ai-skills:start -->
+## Mermaid Diagrams
+
+When the user asks to create, edit, or visualize a diagram, follow the
+instructions in `.github/instructions/mermaid.instructions.md`.
+<!-- mermaid-ai-skills:end -->
