@@ -1,6 +1,6 @@
 const STORAGE_KEY = "lgs-season-manager-v1";
 const HISTORICAL_YEARS = [2023, 2024, 2025];
-const TOUR_NAMES = ["Tour 1", "Tour 2", "Tour 3", "Tour 4", "Tour 5", "Tour 6", "Tour 7", "Finale"];
+const TOUR_NAMES = ["Tour 1", "Tour 2", "Tour 3", "Tour 4", "Tour 5", "Tour 6", "Finale"];
 const STATUS_LABELS = {
   planned: "A preparer",
   ready: "Export pret",
@@ -312,7 +312,7 @@ async function linkSeasonFolder() {
       }
     }));
     if (!hasLgsStructure.every(Boolean)) {
-      alert("Selectionnez le dossier LGS qui contient T1 a T7 et Finale.");
+      alert("Selectionnez le dossier LGS qui contient T1 a T6 et Finale.");
       return false;
     }
 
@@ -432,7 +432,7 @@ async function findLatestCalculFile() {
   }
   
   // Then check the tour folders
-  const tourFolders = ["Finale", "T7", "T6", "T5", "T4", "T3", "T2", "T1"];
+  const tourFolders = ["Finale", "T6", "T5", "T4", "T3", "T2", "T1"];
   
   for (const folderName of tourFolders) {
     try {
@@ -766,9 +766,120 @@ function printStandingsPanel(panel, tabLabel, fileName) {
   const clone = panel.cloneNode(true);
   // Remove the "open file" buttons from the clone — they don't work in print
   clone.querySelectorAll(".open-file-btn").forEach(b => b.remove());
+  clone.querySelectorAll(".standings-tab").forEach(b => b.remove());
+  clone.querySelectorAll(".tour-subtab").forEach(b => b.remove());
+  clone.querySelectorAll(".tour-subtabs").forEach(b => b.remove());
+  // Unhide all hidden elements so they appear in print (especially hidden sub-panels)
+  clone.querySelectorAll("[hidden]").forEach(el => {
+    el.removeAttribute("hidden");
+  });
   printArea.appendChild(clone);
 
   window.print();
+}
+
+function shareStandingsPanelToWhatsapp(panel, tabLabel, fileName) {
+  // Generate a PDF like printStandingsPanel does
+  const season = activeSeason();
+  const year = season ? season.year : "";
+  const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+
+  // Build HTML content with title header + cloned panel content
+  let printArea = document.getElementById("lgs-print-area");
+  if (!printArea) {
+    printArea = document.createElement("div");
+    printArea.id = "lgs-print-area";
+    document.body.appendChild(printArea);
+  }
+
+  // Create print header
+  const headerHTML = `
+    <div class="print-header">
+      <div class="print-logo">LGS</div>
+      <div class="print-title-block">
+        <div class="print-eyebrow">ASGLM — LA GRANDE SEMAINE ${year}</div>
+        <div class="print-tab-name">${tabLabel}</div>
+        <div class="print-source">${fileName} · Partagé le ${dateStr}</div>
+      </div>
+    </div>
+    <hr class="print-divider">
+  `;
+
+  // Clone panel and remove buttons
+  const clone = panel.cloneNode(true);
+  clone.querySelectorAll(".open-file-btn").forEach(b => b.remove());
+  clone.querySelectorAll(".standings-tab").forEach(b => b.remove());
+  clone.querySelectorAll(".tour-subtab").forEach(b => b.remove());
+  clone.querySelectorAll(".tour-subtabs").forEach(b => b.remove());
+  
+  // Unhide all hidden elements so they appear in PDF (especially hidden sub-panels)
+  clone.querySelectorAll("[hidden]").forEach(el => {
+    el.removeAttribute("hidden");
+  });
+
+  // Create container for PDF content
+  const pdfContent = document.createElement("div");
+  pdfContent.innerHTML = headerHTML;
+  pdfContent.appendChild(clone);
+
+  // Generate PDF using html2pdf
+  const options = {
+    margin: 10,
+    filename: `LGS-${year}-${tabLabel.replace(/\s+/g, "-")}.pdf`,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { orientation: "portrait", unit: "mm", format: "a4" }
+  };
+
+  // Generate PDF as blob
+  html2pdf()
+    .set(options)
+    .from(pdfContent)
+    .outputPdf("blob")
+    .then(blob => {
+      // Try using Web Share API (works on mobile for WhatsApp)
+      if (navigator.share) {
+        navigator.share({
+          title: `LGS ${year} - ${tabLabel}`,
+          text: `Résultats du ${tabLabel}`,
+          files: [
+            new File([blob], `LGS-${year}-${tabLabel.replace(/\s+/g, "-")}.pdf`, { type: "application/pdf" })
+          ]
+        }).catch(err => {
+          // User cancelled or sharing failed
+          console.log("Partage annulé ou échoué:", err);
+          fallbackShare(blob, year, tabLabel);
+        });
+      } else {
+        // Fallback: For desktop or browsers without Web Share API
+        fallbackShare(blob, year, tabLabel);
+      }
+    })
+    .catch(error => {
+      console.error("Erreur lors de la génération du PDF:", error);
+      alert("Impossible de générer le PDF pour le partage.");
+    });
+
+  function fallbackShare(blob, year, tabLabel) {
+    // Create a download link and suggest manual WhatsApp sharing
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `LGS-${year}-${tabLabel.replace(/\s+/g, "-")}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    alert(
+      `Le PDF a été téléchargé.\n\n` +
+      `Pour le partager sur WhatsApp:\n` +
+      `1. Ouvrez WhatsApp\n` +
+      `2. Sélectionnez un contact ou groupe\n` +
+      `3. Cliquez sur le + (Joindre un fichier)\n` +
+      `4. Sélectionnez le fichier PDF téléchargé`
+    );
+  }
 }
 
 function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false, tourDateMap = {}) {
@@ -851,6 +962,18 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     printStandingsPanel(activePanel, activeTabLabel, fileName);
   });
   tabBar.appendChild(pdfBtn);
+
+  // WhatsApp share button (always visible, shares the currently active tab)
+  const whatsappBtn = document.createElement("button");
+  whatsappBtn.className = "standings-tab standings-tab-whatsapp";
+  whatsappBtn.textContent = "📱 Partager";
+  whatsappBtn.title = "Partager l'onglet actif sur WhatsApp";
+  whatsappBtn.addEventListener("click", () => {
+    const activePanel = Object.values(panels).find(p => !p.hidden);
+    if (!activePanel) return;
+    shareStandingsPanelToWhatsapp(activePanel, activeTabLabel, fileName);
+  });
+  tabBar.appendChild(whatsappBtn);
 
   // Section nav — one per panel, prepended at top before content is filled
   // rebuildSectionNav fills the nav inside the given panel
