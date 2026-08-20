@@ -560,111 +560,86 @@ async function refreshStandings() {
       let validRecords = 0;
       let skippedRecords = 0;
       
+      // Per-tour column mapping: [NET col, BRUT col, label]
+      const TOUR_COLS = [
+        ["F",  "H",  "T1"],
+        ["J",  "L",  "T2"],
+        ["N",  "P",  "T3"],
+        ["R",  "T",  "T4"],
+        ["V",  "X",  "T5"],
+        ["Z",  "AB", "T6"],
+      ];
+
       data.forEach((row, rowIndex) => {
-        // Skip first row (metadata)
-        if (rowIndex === 0) return;
-        
+        // Skip header rows (row 0 = group headers, row 1 = column labels, row 2 = empty)
+        if (rowIndex <= 1) return;
+
         // Extract name from column B
         const name = String(row.B || "").trim();
-        
+
         // Series is in column E
         const series = row.E || "";
-        
-        const dayScoreNET = row.AD || "";
-        const dayScoreBRUT = row.AE || "";
-        const finalScoreNET = row.AF || "";
-        const finalScoreBRUT = row.AH || "";
-        const totalScoreNET = row.AJ || "";
-        const totalScoreBRUT = row.AK || "";
-        
-        // Debug: Log Antoine Salgado
-        if (name.toLowerCase().includes("salgado")) {
-          console.log(`🔍 SALGADO FOUND in ${sheetName}:`, {
-            name,
-            series,
-            dayScoreNET,
-            dayScoreBRUT,
-            finalScoreNET,
-            finalScoreBRUT,
-            totalScoreNET,
-            totalScoreBRUT,
-            isFinaleFile,
-            rowIndex
-          });
-        }
-        
+
+        const bestNET    = row.AD || "";
+        const bestBRUT   = row.AE || "";
+        const finalNET   = row.AF || "";
+        const finalBRUT  = row.AH || "";
+        const totalNET   = row.AJ || "";
+        const totalBRUT  = row.AK || "";
+
         // Skip placeholder/header rows
         if (name === "Nom - Prénom" || name === "Nom - prenom" || !name || !series) {
           skippedRecords++;
           return;
         }
-        
-        // Use series as key
+
         const seriesKey = String(series).toLowerCase();
-        
-        // Add NET score if available and valid
-        if (totalScoreNET && totalScoreNET !== "") {
-          // Only filter by final score if finale has actually been played
-          const finalScoreNETValid = !(isFinaleFile && finaleHasBeenPlayed) || (finalScoreNET && finalScoreNET !== "En cours" && finalScoreNET !== "");
-          
-          if (finalScoreNETValid) {
-            if (!bySeriesAndTotal[seriesKey]) bySeriesAndTotal[seriesKey] = [];
-            const netTotal = parseFloat(totalScoreNET);
-            if (isNaN(netTotal)) { skippedRecords++; return; }
-            const netRecord = {
-              name,
-              series: String(series).trim(),
-              type: "NET",
-              dayScore: String(dayScoreNET).trim(),
-              finalScore: String(finalScoreNET).trim(),
-              total: netTotal,
-              totalScore: String(totalScoreNET).trim()
-            };
-            if (name.toLowerCase().includes("salgado")) {
-              console.log(`  ✅ NET record added:`, netRecord);
-            }
-            bySeriesAndTotal[seriesKey].push(netRecord);
-            validRecords++;
-          } else if (isFinaleFile && finaleHasBeenPlayed) {
-            skippedRecords++;
-            if (name.toLowerCase().includes("salgado")) {
-              console.log(`  ❌ NET record SKIPPED (Finale without final score)`);
-            }
-          }
+
+        // Build per-tour scores array (only tours that have a numeric score)
+        const tourScores = {};
+        for (const [netCol, brutCol, label] of TOUR_COLS) {
+          const n = parseFloat(row[netCol]);
+          const b = parseFloat(row[brutCol]);
+          if (!isNaN(n)) tourScores[label] = { NET: n, BRUT: isNaN(b) ? n : b };
         }
-        
-        // Add BRUT score if available
-        if (totalScoreBRUT && totalScoreBRUT !== "") {
-          // Only filter by final score if finale has actually been played
-          const finalScoreBRUTValid = !(isFinaleFile && finaleHasBeenPlayed) || (finalScoreBRUT && finalScoreBRUT !== "En cours" && finalScoreBRUT !== "");
+
+        const addRecord = (scoreType, totalRaw, finalRaw, bestRaw) => {
+          let total = parseFloat(totalRaw);
+          let totalScore = String(totalRaw).trim();
           
-          if (finalScoreBRUTValid) {
-            if (!bySeriesAndTotal[seriesKey]) bySeriesAndTotal[seriesKey] = [];
-            const brutTotal = parseFloat(totalScoreBRUT);
-            if (isNaN(brutTotal)) { skippedRecords++; return; }
-            const brutRecord = {
-              name,
-              series: String(series).trim(),
-              type: "BRUT",
-              dayScore: String(dayScoreBRUT).trim(),
-              finalScore: String(finalScoreBRUT).trim(),
-              total: brutTotal,
-              totalScore: String(totalScoreBRUT).trim()
-            };
-            if (name.toLowerCase().includes("salgado")) {
-              console.log(`  ✅ BRUT record added:`, brutRecord);
-            }
-            bySeriesAndTotal[seriesKey].push(brutRecord);
-            validRecords++;
-          } else if (isFinaleFile && finaleHasBeenPlayed) {
-            skippedRecords++;
-            if (name.toLowerCase().includes("salgado")) {
-              console.log(`  ❌ BRUT record SKIPPED (Finale without final score)`);
-            }
+          // "En cours" = season in progress, use best-tour score as ranking proxy
+          if (isNaN(total)) {
+            const best = parseFloat(bestRaw);
+            if (isNaN(best)) return; // no score at all, skip
+            total = best;
+            totalScore = String(bestRaw).trim();
           }
-        } else if (name.toLowerCase().includes("salgado")) {
-          console.log(`  ❌ BRUT record SKIPPED (empty):`, { totalScoreBRUT });
-        }
+
+          // When finale has been played, skip players without a finale score
+          if (isFinaleFile && finaleHasBeenPlayed) {
+            const finalVal = parseFloat(finalRaw);
+            if (isNaN(finalVal)) { skippedRecords++; return; }
+          }
+
+          if (!bySeriesAndTotal[seriesKey]) bySeriesAndTotal[seriesKey] = [];
+          bySeriesAndTotal[seriesKey].push({
+            name,
+            series: String(series).trim(),
+            type: scoreType,
+            bestScore: String(bestRaw).trim(),
+            finalScore: String(finalRaw).trim(),
+            total,
+            totalScore,
+            inProgress: String(totalRaw).trim() === "En cours",
+            tourScores: Object.fromEntries(
+              Object.entries(tourScores).map(([t, v]) => [t, v[scoreType]])
+            )
+          });
+          validRecords++;
+        };
+
+        if (totalNET   !== "") addRecord("NET",  totalNET,  finalNET,  bestNET);
+        if (totalBRUT  !== "") addRecord("BRUT", totalBRUT, finalBRUT, bestBRUT);
       });
       
       console.log(`${sheetName}: ${validRecords} valid, ${skippedRecords} skipped, series found: ${Object.keys(bySeriesAndTotal).sort().join(", ")}`);
@@ -682,7 +657,7 @@ async function refreshStandings() {
       name: fileInfo.name
     };
     
-    renderStandings(standings, fileInfo.name);
+    renderStandings(standings, fileInfo.name, isFinaleFile, finaleHasBeenPlayed);
   } catch (error) {
     elements.standingsStatus.textContent = "Erreur : Impossible de lire le fichier Excel. Verifiez qu'il n'est pas ouvert.";
     console.error(error);
@@ -712,143 +687,229 @@ async function openStandingsFile() {
   }
 }
 
-function renderStandings(standings, fileName) {
+function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false) {
   elements.standingsContainer.innerHTML = "";
   elements.standingsStatus.textContent = `Donnees de : ${fileName}`;
-  
+  const availableTours = ["T1","T2","T3","T4","T5","T6"];
+  const toursWithData = availableTours.filter(t =>
+    Object.values(standings).some(cat =>
+      Object.values(cat).some(players =>
+        players.some(p => p.tourScores && p.tourScores[t] !== undefined)
+      )
+    )
+  );
+
+
+  const tabs = [
+    { id: "best", label: "Classement" },
+    ...toursWithData.map(t => ({ id: t, label: t })),
+    { id: "all",  label: "Tout" }
+  ];
+  if (isFinaleFile && finaleHasBeenPlayed) {
+    tabs.splice(1, 0, { id: "finale", label: "Finale" });
+  }
+
+  // --- Tab bar + empty panels (append panels to DOM now) ---
+  const tabBar = document.createElement("div");
+  tabBar.className = "standings-tabs";
+  elements.standingsContainer.appendChild(tabBar);
+
+  const panels = {};
+  tabs.forEach((tab, i) => {
+    const panel = document.createElement("div");
+    panel.className = "standings-tab-panel";
+    panel.hidden = i !== 0;
+    panels[tab.id] = panel;
+    elements.standingsContainer.appendChild(panel);
+
+    const btn = document.createElement("button");
+    btn.className = "standings-tab" + (i === 0 ? " active" : "");
+    btn.textContent = tab.label;
+    btn.addEventListener("click", () => {
+      tabBar.querySelectorAll(".standings-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      Object.values(panels).forEach(p => { p.hidden = true; });
+      panel.hidden = false;
+    });
+    tabBar.appendChild(btn);
+  });
+
+  // --- Helpers ---
+  function sortedWithTies(players, limit) {
+    const sorted = [...players].sort((a, b) => {
+      const d = a.total - b.total;
+      return d !== 0 ? d : a.name.localeCompare(b.name);
+    });
+    if (sorted.length <= limit) return sorted;
+    const cutScore = sorted[limit - 1].total;
+    // keep top N, then extend for any tied at the cut
+    const base = sorted.slice(0, limit);
+    const extra = sorted.slice(limit).filter(p => p.total === cutScore);
+    return base.concat(extra);
+  }
+
+  function trueRank(player, allSorted) {
+    return allSorted.filter(p => p.total < player.total).length + 1;
+  }
+
+  function makeOpenFileBtn() {
+    const btn = document.createElement("button");
+    btn.className = "open-file-btn";
+    btn.textContent = "📄";
+    btn.title = "Ouvrir le fichier Excel";
+    btn.addEventListener("click", () => openStandingsFile());
+    return btn;
+  }
+
+  function makePlayerRow(player, rank, cols) {
+    const row = document.createElement("div");
+    row.className = "player-row";
+    row.style.gridTemplateColumns = `2rem 1.5fr ${cols.map(() => "1fr").join(" ")}`;
+
+    const rankCell = document.createElement("div");
+    rankCell.className = "rank";
+    rankCell.textContent = rank;
+    row.appendChild(rankCell);
+
+    const nameCell = document.createElement("div");
+    nameCell.className = "name";
+    nameCell.textContent = player.name;
+    row.appendChild(nameCell);
+
+    for (const col of cols) {
+      const cell = document.createElement("div");
+      cell.className = "score-cell";
+      if (col.bold) cell.style.fontWeight = "700";
+      const val = col.value(player);
+      cell.innerHTML = `<div class="score-label">${col.label}</div><div class="score-value">${val !== undefined && val !== "" ? val : "—"}</div>`;
+      row.appendChild(cell);
+    }
+    return row;
+  }
+
+  function makeSeriesGroup(seriesName, players, cols) {
+    const group = document.createElement("div");
+    group.className = "series-group";
+
+    const titleRow = document.createElement("div");
+    titleRow.style.cssText = "display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem";
+    const title = document.createElement("div");
+    title.className = "series-title";
+    title.textContent = seriesName;
+    titleRow.appendChild(title);
+    titleRow.appendChild(makeOpenFileBtn());
+    group.appendChild(titleRow);
+
+    players.forEach(player => {
+      group.appendChild(makePlayerRow(player, trueRank(player, players), cols));
+    });
+    return group;
+  }
+
+  function appendTypeSection(panel, label, seriesNames, seriesData, scoreType, getPlayers, cols) {
+    let added = false;
+    for (const sn of seriesNames) {
+      const arr = seriesData[sn];
+      if (!arr) { console.warn("appendTypeSection: no data for series", sn); continue; }
+      const players = getPlayers(arr, scoreType);
+      if (!players || players.length === 0) continue;
+      if (!added) {
+        const h = document.createElement("div");
+        h.className = "score-type-header";
+        h.textContent = label;
+        panel.appendChild(h);
+        added = true;
+      }
+      panel.appendChild(makeSeriesGroup(sn, players, cols));
+    }
+    if (!added) console.log(`appendTypeSection: nothing rendered for "${label}", scoreType=${scoreType}, seriesNames=`, seriesNames);
+  }
+
+  // --- Fill panels ---
   const categories = ["HOMME", "DAME"];
   const scoreTypes = ["NET", "BRUT"];
-  
+
   for (const category of categories) {
     if (!standings[category] || Object.keys(standings[category]).length === 0) continue;
-    
-    const categoryDiv = document.createElement("div");
-    categoryDiv.className = "standings-category";
-    
-    const categoryTitle = document.createElement("h3");
-    categoryTitle.style.marginTop = "1.5rem";
-    categoryTitle.style.marginBottom = "0.8rem";
-    categoryTitle.textContent = category;
-    categoryDiv.appendChild(categoryTitle);
-    
     const seriesData = standings[category];
     const seriesNames = Object.keys(seriesData).sort();
-    
-    // For each score type (NET, BRUT)
+
+    const catHeading = () => {
+      const h = document.createElement("h3");
+      h.style.cssText = "margin-top:1.5rem;margin-bottom:.8rem";
+      h.textContent = category;
+      return h;
+    };
+
+    // ── Classement tab (top 10, best + finale + total) ──
+    panels["best"].appendChild(catHeading());
     for (const scoreType of scoreTypes) {
-      const hasType = seriesData[Object.keys(seriesData)[0]]?.some(p => p.type === scoreType);
-      if (!hasType) continue;
-      
-      // Create type header
-      const typeHeader = document.createElement("div");
-      typeHeader.style.marginTop = "1rem";
-      typeHeader.style.marginBottom = "0.5rem";
-      typeHeader.style.fontWeight = "700";
-      typeHeader.style.color = "var(--green)";
-      typeHeader.style.fontSize = "0.9rem";
-      typeHeader.textContent = `Classement ${scoreType}`;
-      categoryDiv.appendChild(typeHeader);
-      
-      for (const seriesName of seriesNames) {
-        const players = seriesData[seriesName].filter(p => p.type === scoreType);
-        if (players.length === 0) continue;
-         
-        players.sort((a, b) => {
-          const diff = a.total - b.total;
-          if (diff !== 0) return diff;
-          return a.name.localeCompare(b.name); // alphabetical tiebreak
-        });
-         
-        // Get top 5 with ties: include all players tied at the 5th position
-        let topPlayers = players.slice(0, 5);
-        if (players.length > 5) {
-          const fifthPlaceScore = topPlayers[4].total;
-          // Also include any beyond position 5 who share the same score
-          const tied = players.slice(5).filter(p => p.total === fifthPlaceScore);
-          topPlayers = topPlayers.concat(tied);
-        }
-         
-        // Debug: Log Serie 1 BRUT
-        if (scoreType === "BRUT") {
-          console.log(`📊 Serie ${seriesName} ${scoreType}:`, {
-            totalPlayers: players.length,
-            top: topPlayers.map(p => ({ name: p.name, total: p.total }))
-          });
-        }
-        
-        const seriesGroup = document.createElement("div");
-        seriesGroup.className = "series-group";
-        
-        // Create a title container with the series name and open file button
-        const seriesTitleContainer = document.createElement("div");
-        seriesTitleContainer.style.display = "flex";
-        seriesTitleContainer.style.alignItems = "center";
-        seriesTitleContainer.style.gap = "0.5rem";
-        seriesTitleContainer.style.marginBottom = "0.5rem";
-        
-        const seriesTitle = document.createElement("div");
-        seriesTitle.className = "series-title";
-        seriesTitle.textContent = `Serie ${seriesName}`;
-        seriesTitleContainer.appendChild(seriesTitle);
-        
-        // Add button to open the Excel file
-        const openFileBtn = document.createElement("button");
-        openFileBtn.className = "open-file-btn";
-        openFileBtn.textContent = "📄";
-        openFileBtn.title = "Ouvrir le fichier Excel";
-        openFileBtn.style.background = "none";
-        openFileBtn.style.border = "1px solid var(--green)";
-        openFileBtn.style.color = "var(--green)";
-        openFileBtn.style.padding = "0.25rem 0.5rem";
-        openFileBtn.style.borderRadius = "3px";
-        openFileBtn.style.cursor = "pointer";
-        openFileBtn.style.fontSize = "0.9rem";
-        openFileBtn.addEventListener("click", () => openStandingsFile());
-        seriesTitleContainer.appendChild(openFileBtn);
-        
-        seriesGroup.appendChild(seriesTitleContainer);
-        
-        topPlayers.forEach((player, index) => {
-          const row = document.createElement("div");
-          row.className = "player-row";
-          
-          const rankCell = document.createElement("div");
-          rankCell.className = "rank";
-          // Compute true rank: count how many players scored strictly less
-          const trueRank = topPlayers.filter(p => p.total < player.total).length + 1;
-          rankCell.textContent = String(trueRank);
-          
-          const nameCell = document.createElement("div");
-          nameCell.className = "name";
-          nameCell.textContent = player.name;
-          
-          const dayScoreCell = document.createElement("div");
-          dayScoreCell.className = "score-cell";
-          dayScoreCell.innerHTML = `<div class="score-label">Meilleur tour</div><div class="score-value">${player.dayScore}</div>`;
-          
-          const finalScoreCell = document.createElement("div");
-          finalScoreCell.className = "score-cell";
-          finalScoreCell.innerHTML = `<div class="score-label">Finale</div><div class="score-value">${player.finalScore}</div>`;
-          
-          const totalCell = document.createElement("div");
-          totalCell.className = "score-cell";
-          totalCell.style.fontWeight = "700";
-          totalCell.innerHTML = `<div class="score-label">Total LGS</div><div class="score-value">${player.totalScore}</div>`;
-          
-          row.appendChild(rankCell);
-          row.appendChild(nameCell);
-          row.appendChild(dayScoreCell);
-          row.appendChild(finalScoreCell);
-          row.appendChild(totalCell);
-          
-          seriesGroup.appendChild(row);
-        });
-        
-        categoryDiv.appendChild(seriesGroup);
+      const totalCols = [
+        { label: "Meilleur tour", value: p => p.bestScore },
+        ...(isFinaleFile && finaleHasBeenPlayed ? [{ label: "Finale", value: p => p.finalScore }] : []),
+        { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
+      ];
+      appendTypeSection(
+        panels["best"], `Classement ${scoreType}`, seriesNames, seriesData, scoreType,
+        (arr, t) => sortedWithTies(arr.filter(p => p.type === t), 10),
+        totalCols
+      );
+    }
+
+    // ── Per-tour tabs ──
+    for (const tourId of toursWithData) {
+      if (!panels[tourId]) continue;
+      panels[tourId].appendChild(catHeading());
+      for (const scoreType of scoreTypes) {
+        const tourCols = [{ label: tourId, value: p => p.total, bold: true }];
+        appendTypeSection(
+          panels[tourId], `Classement ${scoreType} — ${tourId}`, seriesNames, seriesData, scoreType,
+          (arr, t) => {
+            const raw = arr
+              .filter(p => p.type === t && p.tourScores && p.tourScores[tourId] !== undefined)
+              .map(p => ({ ...p, total: p.tourScores[tourId] }));
+            return sortedWithTies(raw, 5);
+          },
+          tourCols
+        );
       }
     }
-    
-    elements.standingsContainer.appendChild(categoryDiv);
+
+    // ── Finale tab ──
+    if (panels["finale"]) {
+      panels["finale"].appendChild(catHeading());
+      for (const scoreType of scoreTypes) {
+        const finalCols = [{ label: "Finale", value: p => p.finalScore, bold: true }];
+        appendTypeSection(
+          panels["finale"], `Classement ${scoreType} — Finale`, seriesNames, seriesData, scoreType,
+          (arr, t) => {
+            const raw = arr
+              .filter(p => p.type === t && p.finalScore && !isNaN(parseFloat(p.finalScore)))
+              .map(p => ({ ...p, total: parseFloat(p.finalScore) }));
+            return sortedWithTies(raw, 5);
+          },
+          finalCols
+        );
+      }
+    }
+
+    // ── Tout tab (all players, no limit) ──
+    panels["all"].appendChild(catHeading());
+    for (const scoreType of scoreTypes) {
+      const totalCols = [
+        { label: "Meilleur tour", value: p => p.bestScore },
+        ...(isFinaleFile && finaleHasBeenPlayed ? [{ label: "Finale", value: p => p.finalScore }] : []),
+        { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
+      ];
+      appendTypeSection(
+        panels["all"], `Classement ${scoreType} — Complet`, seriesNames, seriesData, scoreType,
+        (arr, t) => [...arr.filter(p => p.type === t)].sort((a, b) => {
+          const d = a.total - b.total;
+          return d !== 0 ? d : a.name.localeCompare(b.name);
+        }),
+        totalCols
+      );
+    }
   }
 }
 
