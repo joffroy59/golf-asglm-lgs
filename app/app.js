@@ -636,7 +636,10 @@ async function refreshStandings() {
           // "En cours" = season in progress, use best-tour score as ranking proxy
           if (isNaN(total)) {
             const best = parseFloat(bestRaw);
-            if (isNaN(best)) return; // no score at all, skip
+            if (isNaN(best)) {
+              if (name.toLowerCase().includes("salgado")) console.log(`  ❌ ${scoreType} SKIPPED (no score at all):`, { totalRaw, bestRaw });
+              return; // no score at all, skip
+            }
             total = best;
             totalScore = String(bestRaw).trim();
           }
@@ -644,11 +647,15 @@ async function refreshStandings() {
           // When finale has been played, skip players without a finale score
           if (isFinaleFile && finaleHasBeenPlayed) {
             const finalVal = parseFloat(finalRaw);
-            if (isNaN(finalVal)) { skippedRecords++; return; }
+            if (isNaN(finalVal)) {
+              skippedRecords++;
+              if (name.toLowerCase().includes("salgado")) console.log(`  ❌ ${scoreType} SKIPPED (Finale without final score):`, { finalRaw });
+              return;
+            }
           }
 
           if (!bySeriesAndTotal[seriesKey]) bySeriesAndTotal[seriesKey] = [];
-          bySeriesAndTotal[seriesKey].push({
+          const record = {
             name,
             series: String(series).trim(),
             type: scoreType,
@@ -660,9 +667,15 @@ async function refreshStandings() {
             tourScores: Object.fromEntries(
               Object.entries(tourScores).map(([t, v]) => [t, v[scoreType]])
             )
-          });
+          };
+          bySeriesAndTotal[seriesKey].push(record);
           validRecords++;
+          if (name.toLowerCase().includes("salgado")) console.log(`  ✅ ${scoreType} record added:`, record);
         };
+
+        if (name.toLowerCase().includes("salgado")) {
+          console.log(`🔍 SALGADO FOUND in ${sheetName}:`, { name, series: seriesKey, totalNET, totalBRUT, finalNET, finalBRUT, bestNET, bestBRUT, tourScores });
+        }
 
         if (totalNET   !== "") addRecord("NET",  totalNET,  finalNET,  bestNET);
         if (totalBRUT  !== "") addRecord("BRUT", totalBRUT, finalBRUT, bestBRUT);
@@ -751,6 +764,18 @@ function printStandingsPanel(panel, tabLabel, fileName) {
 function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false, tourDateMap = {}) {
   elements.standingsContainer.innerHTML = "";
   elements.standingsStatus.textContent = `Donnees de : ${fileName}`;
+
+  console.log("renderStandings called, standings keys:", Object.keys(standings));
+  for (const [cat, seriesData] of Object.entries(standings)) {
+    const seriesKeys = Object.keys(seriesData);
+    console.log(`  ${cat}: ${seriesKeys.length} series, total players:`,
+      seriesKeys.reduce((n, k) => n + seriesData[k].length, 0));
+    if (seriesKeys.length > 0) {
+      const sample = seriesData[seriesKeys[0]][0];
+      console.log(`  sample player:`, sample?.name, "tourScores:", sample?.tourScores);
+    }
+  }
+
   const availableTours = ["T1","T2","T3","T4","T5","T6"];
   const toursWithData = availableTours.filter(t =>
     Object.values(standings).some(cat =>
@@ -759,8 +784,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       )
     )
   );
-
-
+  console.log("toursWithData:", toursWithData);
   // Helper: build display label with date suffix when available
   function withDate(id, baseLabel) {
     const d = tourDateMap[id];
@@ -903,6 +927,10 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         panel.appendChild(h);
         added = true;
       }
+      console.log(`📊 Serie ${sn} ${scoreType} (${label}):`, {
+        totalPlayers: players.length,
+        top: players.map(p => ({ name: p.name, total: p.total }))
+      });
       panel.appendChild(makeSeriesGroup(sn, players, cols));
     }
     if (!added) console.log(`appendTypeSection: nothing rendered for "${label}", scoreType=${scoreType}, seriesNames=`, seriesNames);
