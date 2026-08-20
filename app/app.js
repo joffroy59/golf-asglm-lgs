@@ -1118,10 +1118,9 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
 
     const catHeading = () => {
       const h = document.createElement("h3");
-      h.style.cssText = "margin-top:1.5rem;margin-bottom:.8rem";
-      h.textContent = category;
       h.className = "cat-heading";
       h.dataset.category = category;
+      h.textContent = category;
       return h;
     };
 
