@@ -111,6 +111,7 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
 .standings-section-nav { display: flex; flex-direction: column; gap: .7rem; padding: .8rem 0 1rem; border-bottom: 1px solid var(--line); margin-bottom: .8rem; position: sticky; top: 0; background: var(--paper); z-index: 10; }
 .section-nav-cat { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .35rem; }
 .section-nav-cat-label { flex: 0 0 auto; align-self: flex-start; font-family: "Courier New", monospace; font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: #e5eadf; border: 1px solid var(--line); padding: .18rem .5rem; margin-top: .05rem; white-space: nowrap; }
+.section-nav-tour-label { flex: 0 0 auto; font-family: "Courier New", monospace; font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: #e5eadf; border: 1px solid var(--line); padding: .18rem .5rem; white-space: nowrap; }
 .section-nav-groups { display: flex; flex-direction: column; gap: .3rem; flex: 1; }
 .section-nav-group { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .35rem; }
 .section-nav-link { font-family: "Courier New", monospace; text-decoration: none; transition: border-color .12s, background .12s, color .12s; }

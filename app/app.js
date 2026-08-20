@@ -914,6 +914,25 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         const row = document.createElement("div");
         row.className = "section-nav-group";
 
+        // Check if this header is inside a tour subtab and extract tour info
+        let tourLabel = null;
+        let tourPanel = h.closest(".standings-tab-panel");
+        if (tourPanel) {
+          // Look for tour identifier in panel structure
+          const tourMatch = tourPanel.id && tourPanel.id.match(/tour-(\w+)/);
+          if (tourMatch) {
+            tourLabel = tourMatch[1].toUpperCase();
+          }
+        }
+
+        // Create non-clickable tour label if this is a tour-specific panel
+        if (tourLabel) {
+          const tourLabelSpan = document.createElement("span");
+          tourLabelSpan.className = "section-nav-tour-label";
+          tourLabelSpan.textContent = tourLabel;
+          row.appendChild(tourLabelSpan);
+        }
+
         // Create non-clickable label for NET/BRUT
         const headerLabel = document.createElement("span");
         headerLabel.className = "section-nav-header";
