@@ -1,6 +1,6 @@
 const STORAGE_KEY = "lgs-season-manager-v1";
 const HISTORICAL_YEARS = [2023, 2024, 2025];
-const TOUR_NAMES = ["Tour 1", "Tour 2", "Tour 3", "Tour 4", "Tour 5", "Tour 6", "Tour 7", "Finale"];
+const TOUR_NAMES = ["Tour 1", "Tour 2", "Tour 3", "Tour 4", "Tour 5", "Tour 6", "Finale"];
 const STATUS_LABELS = {
   planned: "A preparer",
   ready: "Export pret",
@@ -312,7 +312,7 @@ async function linkSeasonFolder() {
       }
     }));
     if (!hasLgsStructure.every(Boolean)) {
-      alert("Selectionnez le dossier LGS qui contient T1 a T7 et Finale.");
+      alert("Selectionnez le dossier LGS qui contient T1 a T6 et Finale.");
       return false;
     }
 
@@ -432,7 +432,7 @@ async function findLatestCalculFile() {
   }
   
   // Then check the tour folders
-  const tourFolders = ["Finale", "T7", "T6", "T5", "T4", "T3", "T2", "T1"];
+  const tourFolders = ["Finale", "T6", "T5", "T4", "T3", "T2", "T1"];
   
   for (const folderName of tourFolders) {
     try {
