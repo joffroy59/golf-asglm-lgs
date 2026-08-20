@@ -1181,8 +1181,16 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
   function shouldGroupSeries(s1, s2) {
     const n1 = String(s1).toLowerCase().trim();
     const n2 = String(s2).toLowerCase().trim();
+    // Extract numeric part from series names (e.g., "serie 3" -> 3)
+    const num1 = parseInt(n1.match(/\d+/)?.[0]) || null;
+    const num2 = parseInt(n2.match(/\d+/)?.[0]) || null;
     // Series 3 and 4 share common ranking
-    return (n1 === "3" && n2 === "4") || (n1 === "4" && n2 === "3");
+    return (num1 === 3 && num2 === 4) || (num1 === 4 && num2 === 3);
+  }
+
+  function getSeriesNumber(seriesName) {
+    const match = String(seriesName || "").toLowerCase().match(/\d+/);
+    return match ? parseInt(match[0]) : null;
   }
 
   function appendTypeSection(panel, label, seriesNames, seriesData, scoreType, getPlayers, cols) {
@@ -1193,12 +1201,17 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       if (processedSeries.has(sn)) continue; // Already processed as part of a group
 
       // Check if this is series 3 or 4 and has a pair
+      const seriesNum = getSeriesNumber(sn);
       let groupedSeries = [sn];
-      if ((sn === "3" || sn === "4") && seriesNames.includes(sn === "3" ? "4" : "3")) {
-        // Combine series 3 and 4 for ranking
-        const otherSeries = sn === "3" ? "4" : "3";
-        groupedSeries = [sn, otherSeries].sort();
-        processedSeries.add(otherSeries);
+      if ((seriesNum === 3 || seriesNum === 4)) {
+        // Look for the paired series (3-4)
+        const otherNum = seriesNum === 3 ? 4 : 3;
+        const otherSeries = seriesNames.find(s => getSeriesNumber(s) === otherNum);
+        if (otherSeries) {
+          // Combine series 3 and 4 for ranking
+          groupedSeries = [sn, otherSeries].sort();
+          processedSeries.add(otherSeries);
+        }
       }
 
       // Get all players from grouped series
