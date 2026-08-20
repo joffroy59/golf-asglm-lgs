@@ -45,9 +45,14 @@
           <p class="eyebrow">TABLEAU DE BORD</p>
           <h2 id="season-title"></h2>
           <p id="season-path" class="path"></p>
+          <p id="source-info" class="source-info"></p>
           <p id="scan-result" class="scan-result"></p>
         </div>
         <div class="season-actions">
+          <div class="source-toggle" role="group" aria-label="Source des fichiers">
+            <button class="button button-quiet source-toggle-button" id="source-local-button" type="button" aria-pressed="true">Mode local</button>
+            <button class="button button-quiet source-toggle-button" id="source-dropbox-button" type="button" aria-pressed="false">Mode Dropbox</button>
+          </div>
           <button class="button button-quiet" id="link-folder-button" type="button">Lier le dossier LGS</button>
           <div class="progress-block">
             <span id="progress-label"></span>

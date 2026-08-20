@@ -40,8 +40,12 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 0; paddi
 .import-label { display: inline-block; }
 .season-overview { padding: 2.5rem 0 1.5rem; }
 .path, .archive-panel p { margin-bottom: 0; color: var(--muted); font-family: "Courier New", monospace; font-size: .82rem; }
+.source-info { min-height: 1.1rem; margin: .45rem 0 0; color: #2e5f53; font-family: "Courier New", monospace; font-size: .72rem; }
 .scan-result { min-height: 1.1rem; margin: .45rem 0 0; color: var(--green); font-family: "Courier New", monospace; font-size: .72rem; }
 .season-actions { display: flex; align-items: end; gap: 1.3rem; }
+.source-toggle { display: inline-flex; gap: .4rem; flex-wrap: wrap; justify-content: flex-end; }
+.source-toggle-button { min-width: 132px; }
+.source-toggle-button.active { border-color: var(--green); background: var(--lime); color: var(--ink); }
 .progress-block { min-width: min(310px, 100%); text-align: right; color: var(--muted); font-family: "Courier New", monospace; font-size: .75rem; }
 .progress-track { height: 9px; margin-top: .6rem; overflow: hidden; background: #dce2d7; }
 #progress-bar { width: 0; height: 100%; background: var(--green); transition: width .25s ease; }
