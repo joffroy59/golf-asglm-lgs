@@ -3,7 +3,8 @@ const HISTORICAL_YEARS = [2023, 2024, 2025];
 const TOUR_NAMES = ["Tour 1", "Tour 2", "Tour 3", "Tour 4", "Tour 5", "Tour 6", "Finale"];
 const SOURCE_MODES = {
   local: "local",
-  dropbox: "dropbox"
+  dropboxBrowser: "dropbox-browser",
+  dropboxServer: "dropbox-server"
 };
 const DROPBOX_TOKEN_SESSION_KEY = "lgs-dropbox-access-token-v1";
 const STATUS_LABELS = {
@@ -21,7 +22,8 @@ const elements = {
   seasonPath: document.querySelector("#season-path"),
   sourceInfo: document.querySelector("#source-info"),
   sourceLocalButton: document.querySelector("#source-local-button"),
-  sourceDropboxButton: document.querySelector("#source-dropbox-button"),
+  sourceDropboxBrowserButton: document.querySelector("#source-dropbox-browser-button"),
+  sourceDropboxServerButton: document.querySelector("#source-dropbox-server-button"),
   linkFolderButton: document.querySelector("#link-folder-button"),
   tourGrid: document.querySelector("#tour-grid"),
   notes: document.querySelector("#season-notes"),
@@ -50,6 +52,7 @@ function makeSeason(year, directory) {
     directory,
     sourceMode: SOURCE_MODES.local,
     dropboxPath: `/ASGLM ${seasonYear}/LGS`,
+    dropboxServerUrl: "http://localhost:8787",
     sourceMessage: "",
     notes: "",
     tours: TOUR_NAMES.map((name, index) => ({
@@ -63,9 +66,18 @@ function makeSeason(year, directory) {
 }
 
 function ensureSeasonDefaults(season) {
-  season.sourceMode = season.sourceMode === SOURCE_MODES.dropbox ? SOURCE_MODES.dropbox : SOURCE_MODES.local;
+  if (season.sourceMode === "dropbox" || season.sourceMode === SOURCE_MODES.dropboxBrowser) {
+    season.sourceMode = SOURCE_MODES.dropboxBrowser;
+  } else if (season.sourceMode === SOURCE_MODES.dropboxServer) {
+    season.sourceMode = SOURCE_MODES.dropboxServer;
+  } else {
+    season.sourceMode = SOURCE_MODES.local;
+  }
   if (typeof season.dropboxPath !== "string" || !season.dropboxPath.trim()) {
     season.dropboxPath = `/ASGLM ${season.year}/LGS`;
+  }
+  if (typeof season.dropboxServerUrl !== "string" || !season.dropboxServerUrl.trim()) {
+    season.dropboxServerUrl = "http://localhost:8787";
   }
   if (typeof season.sourceMessage !== "string") season.sourceMessage = "";
   if (season.sourceMessage === "Mode Dropbox actif. La connexion Dropbox API sera ajoutee dans une prochaine mise a jour.") {
@@ -166,6 +178,14 @@ function ensureDropboxPath(path, seasonYear) {
   return withLeadingSlash.replace(/\/+$/, "");
 }
 
+function isDropboxBrowserMode(season) {
+  return season.sourceMode === SOURCE_MODES.dropboxBrowser;
+}
+
+function isDropboxServerMode(season) {
+  return season.sourceMode === SOURCE_MODES.dropboxServer;
+}
+
 function tourFolderName(tour) {
   return tour.name === "Finale" ? "Finale" : `T${tour.number}`;
 }
@@ -253,22 +273,35 @@ function render() {
     .sort((a, b) => b.year - a.year)
     .map((item) => new Option(String(item.year), item.id, false, item.id === season.id)));
   elements.seasonTitle.textContent = `Saison ${season.year}`;
-  const isDropboxMode = season.sourceMode === SOURCE_MODES.dropbox;
-  elements.seasonPath.textContent = isDropboxMode
-    ? `Dropbox : ${season.dropboxPath}`
-    : season.directory;
+  const isDropboxBrowser = isDropboxBrowserMode(season);
+  const isDropboxServer = isDropboxServerMode(season);
+  elements.seasonPath.textContent = isDropboxBrowser
+    ? `Dropbox cle navigateur : ${season.dropboxPath}`
+    : (isDropboxServer
+      ? `Dropbox serveur : ${season.dropboxPath}`
+      : season.directory);
   elements.sourceInfo.textContent = currentSourceInfo(season);
-  elements.sourceLocalButton.classList.toggle("active", !isDropboxMode);
-  elements.sourceLocalButton.setAttribute("aria-pressed", String(!isDropboxMode));
-  elements.sourceDropboxButton.classList.toggle("active", isDropboxMode);
-  elements.sourceDropboxButton.setAttribute("aria-pressed", String(isDropboxMode));
+  elements.sourceLocalButton.classList.toggle("active", season.sourceMode === SOURCE_MODES.local);
+  elements.sourceLocalButton.setAttribute("aria-pressed", String(season.sourceMode === SOURCE_MODES.local));
+  elements.sourceDropboxBrowserButton.classList.toggle("active", isDropboxBrowser);
+  elements.sourceDropboxBrowserButton.setAttribute("aria-pressed", String(isDropboxBrowser));
+  elements.sourceDropboxServerButton.classList.toggle("active", isDropboxServer);
+  elements.sourceDropboxServerButton.setAttribute("aria-pressed", String(isDropboxServer));
   elements.linkFolderButton.disabled = false;
-  elements.linkFolderButton.textContent = isDropboxMode
-    ? (hasDropboxToken() ? "Analyser Dropbox" : "Connecter Dropbox")
-    : "Lier le dossier LGS";
-  elements.linkFolderButton.title = isDropboxMode
-    ? "Connecter puis analyser le dossier Dropbox de cette saison."
-    : "Lier le dossier LGS local pour analyser les fichiers.";
+  if (isDropboxBrowser) {
+    elements.linkFolderButton.textContent = hasDropboxToken() ? "Analyser Dropbox" : "Connecter Dropbox";
+    elements.linkFolderButton.title = "Connecter puis analyser le dossier Dropbox de cette saison.";
+  } else if (isDropboxServer) {
+    elements.linkFolderButton.textContent = "Configurer serveur Dropbox";
+    elements.linkFolderButton.title = "Configurer l'URL du serveur et le chemin Dropbox de la saison.";
+  } else {
+    elements.linkFolderButton.textContent = "Lier le dossier LGS";
+    elements.linkFolderButton.title = "Lier le dossier LGS local pour analyser les fichiers.";
+  }
+  elements.refreshStandingsButton.disabled = isDropboxServer;
+  elements.refreshStandingsButton.title = isDropboxServer
+    ? "Mode Dropbox serveur : implémentez un backend puis repassez en mode local ou clé navigateur pour lire les classements."
+    : "";
   elements.scanResult.textContent = season.sourceMessage
     || season.catalogMessage
     || (season.lastScan
@@ -303,23 +336,30 @@ function renderTours(season) {
     file.value = tour.file;
     note.value = tour.note;
     sourceSummary.textContent = sourceLabel(tour.sourceFiles || []);
-    const isDropboxMode = season.sourceMode === SOURCE_MODES.dropbox;
+    const isDropboxBrowser = isDropboxBrowserMode(season);
+    const isDropboxServer = isDropboxServerMode(season);
     openButton.disabled = !canOpenTourFile(season, tour);
     openButton.title = openButton.disabled
-      ? (isDropboxMode
+      ? (isDropboxBrowser
         ? "Connectez Dropbox et relancez l'analyse pour ouvrir ce fichier."
-        : "Liez le dossier LGS pour ouvrir ce fichier.")
+        : (isDropboxServer
+          ? "Mode Dropbox serveur : l'ouverture RMS sera disponible via le backend."
+          : "Liez le dossier LGS pour ouvrir ce fichier."))
       : `Ouvrir ${tour.file}`;
-    uploadButton.disabled = isDropboxMode
+    uploadButton.disabled = isDropboxBrowser
       ? !hasDropboxToken() || !window.showOpenFilePicker
-      : !window.showOpenFilePicker || !window.showDirectoryPicker;
-    uploadButton.title = isDropboxMode
+      : (isDropboxServer
+        ? true
+        : !window.showOpenFilePicker || !window.showDirectoryPicker);
+    uploadButton.title = isDropboxBrowser
       ? (uploadButton.disabled
         ? "Connectez Dropbox pour ajouter un fichier."
         : `Ajouter un fichier dans ${tour.name} sur Dropbox`)
+      : (isDropboxServer
+        ? "Mode Dropbox serveur : l'ajout de fichier passe par un backend."
       : (uploadButton.disabled
         ? "Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier."
-        : `Ajouter un fichier dans ${tour.name}`);
+          : `Ajouter un fichier dans ${tour.name}`));
     status.addEventListener("change", () => updateTour(tour.number, "status", status.value));
     file.addEventListener("change", () => {
       linkedFileHandles.delete(fileHandleKey(season.id, tour.number));
@@ -337,9 +377,10 @@ function fileHandleKey(seasonId, tourNumber) {
 }
 
 function canOpenTourFile(season, tour) {
-  if (season.sourceMode === SOURCE_MODES.dropbox) {
+  if (isDropboxBrowserMode(season)) {
     return hasDropboxToken() && Boolean(tour.file);
   }
+  if (isDropboxServerMode(season)) return false;
   return linkedFileHandles.has(fileHandleKey(season.id, tour.number)) || Boolean(knownRmsHref(season, tour));
 }
 
@@ -359,7 +400,7 @@ async function openRmsFile(seasonId, tourNumber) {
   if (!tour) return;
   try {
     let url = "";
-    if (season.sourceMode === SOURCE_MODES.dropbox) {
+    if (isDropboxBrowserMode(season)) {
       if (!hasDropboxToken()) {
         alert("Connectez Dropbox puis reessayez.");
         return;
@@ -367,6 +408,9 @@ async function openRmsFile(seasonId, tourNumber) {
       const dropboxFilePath = `${ensureDropboxPath(season.dropboxPath, season.year)}/${tourFolderName(tour)}/${tour.file}`;
       const tempLink = await dropboxApiJson("https://api.dropboxapi.com/2/files/get_temporary_link", { path: dropboxFilePath });
       url = tempLink?.link || "";
+    } else if (isDropboxServerMode(season)) {
+      alert("Mode Dropbox serveur : ouvrez ce fichier via votre backend.");
+      return;
     } else {
       url = handle
         ? URL.createObjectURL(await handle.getFile())
@@ -388,7 +432,11 @@ async function addResultFile(seasonId, tourNumber) {
   let root = linkedDirectoryHandles.get(seasonId);
   const season = state.seasons.find((item) => item.id === seasonId);
   const tour = season?.tours.find((item) => item.number === tourNumber);
-  if (season?.sourceMode === SOURCE_MODES.dropbox) {
+  if (season && isDropboxServerMode(season)) {
+    alert("Mode Dropbox serveur : l'ajout de fichier requiert un backend.");
+    return;
+  }
+  if (season && isDropboxBrowserMode(season)) {
     if (!season || !tour || !window.showOpenFilePicker) {
       alert("Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier.");
       return;
@@ -490,10 +538,13 @@ function sourceLabel(files) {
 }
 
 function currentSourceInfo(season) {
-  if (season.sourceMode === SOURCE_MODES.dropbox) {
+  if (isDropboxBrowserMode(season)) {
     return hasDropboxToken()
-      ? `Ressource active : Dropbox (${season.dropboxPath})`
-      : `Ressource active : Dropbox non connecte (${season.dropboxPath})`;
+      ? `Ressource active : Dropbox (cle navigateur, ${season.dropboxPath})`
+      : `Ressource active : Dropbox non connecte (cle navigateur, ${season.dropboxPath})`;
+  }
+  if (isDropboxServerMode(season)) {
+    return `Ressource active : Dropbox serveur (${season.dropboxServerUrl})`;
   }
   const linkedRoot = linkedDirectoryHandles.get(season.id);
   return linkedRoot
@@ -505,15 +556,42 @@ function setSourceMode(mode) {
   const season = activeSeason();
   if (season.sourceMode === mode) return;
   season.sourceMode = mode;
-  season.sourceMessage = mode === SOURCE_MODES.dropbox
-    ? "Mode Dropbox actif. Cliquez sur \"Connecter Dropbox\" pour analyser les fichiers."
-    : "Mode local actif. Utilisez \"Lier le dossier LGS\" pour scanner les fichiers.";
-  if (mode === SOURCE_MODES.dropbox) {
+  if (mode === SOURCE_MODES.dropboxBrowser) {
+    season.sourceMessage = "Mode Dropbox cle navigateur actif. Cliquez sur \"Connecter Dropbox\" pour analyser les fichiers.";
+  } else if (mode === SOURCE_MODES.dropboxServer) {
+    season.sourceMessage = "Mode Dropbox serveur actif. Configurez un backend pour lire et deposer les fichiers.";
+  } else {
+    season.sourceMessage = "Mode local actif. Utilisez \"Lier le dossier LGS\" pour scanner les fichiers.";
+  }
+  if (mode !== SOURCE_MODES.local) {
     linkedDirectoryHandles.delete(season.id);
+    for (const tour of season.tours) {
+      linkedFileHandles.delete(fileHandleKey(season.id, tour.number));
+    }
     season.lastScan = "";
     season.catalogMessage = "";
   }
   render();
+}
+
+async function configureDropboxServerSeason(season) {
+  const currentServerUrl = String(season.dropboxServerUrl || "http://localhost:8787").trim();
+  const serverInput = window.prompt("URL du serveur Dropbox (ex: http://localhost:8787)", currentServerUrl);
+  if (serverInput === null) return false;
+  const serverUrl = String(serverInput || "").trim().replace(/\/+$/, "");
+  if (!serverUrl) {
+    alert("Une URL de serveur Dropbox est requise.");
+    return false;
+  }
+  season.dropboxServerUrl = serverUrl;
+  const currentPath = ensureDropboxPath(season.dropboxPath, season.year);
+  const pathInput = window.prompt("Chemin Dropbox du dossier LGS pour cette saison", currentPath);
+  if (pathInput === null) return false;
+  season.dropboxPath = ensureDropboxPath(pathInput, season.year);
+  season.sourceMessage = "Serveur Dropbox configure. Ce mode nécessite un backend expose par votre serveur.";
+  season.lastScan = "";
+  render();
+  return true;
 }
 
 async function connectAndScanDropboxSeason(season) {
@@ -586,9 +664,10 @@ function updateTour(number, key, value) {
 
 async function linkSeasonFolder() {
   const season = activeSeason();
-  if (season.sourceMode === SOURCE_MODES.dropbox) {
+  if (isDropboxBrowserMode(season)) {
     return connectAndScanDropboxSeason(season);
   }
+  if (isDropboxServerMode(season)) return configureDropboxServerSeason(season);
   if (!window.showDirectoryPicker) {
     alert("Utilisez Microsoft Edge ou Google Chrome pour lier un dossier LGS.");
     return false;
@@ -696,9 +775,10 @@ function importSeason(event) {
 
 async function findLatestCalculFile() {
   const season = activeSeason();
-  if (season.sourceMode === SOURCE_MODES.dropbox) {
+  if (isDropboxBrowserMode(season)) {
     return findLatestCalculFileDropbox(season);
   }
+  if (isDropboxServerMode(season)) return null;
   if (!linkedDirectoryHandles.has(season.id)) {
     console.log("❌ No linked directory for season:", season.id);
     return null;
@@ -825,6 +905,11 @@ async function findLatestCalculFileDropbox(season) {
 
 async function refreshStandings() {
   const season = activeSeason();
+  if (isDropboxServerMode(season)) {
+    elements.standingsContainer.innerHTML = "";
+    elements.standingsStatus.textContent = "Mode Dropbox serveur : configurez et implementez un backend, puis utilisez ce backend pour exposer les fichiers de classement.";
+    return;
+  }
   elements.standingsStatus.textContent = "Chargement en cours...";
   elements.standingsContainer.innerHTML = "";
   
@@ -834,20 +919,20 @@ async function refreshStandings() {
     let fileInfo = await findLatestCalculFile();
     
     if (!fileInfo) {
-      const hasLinked = season.sourceMode === SOURCE_MODES.dropbox
+      const hasLinked = isDropboxBrowserMode(season)
         ? hasDropboxToken()
         : linkedDirectoryHandles.has(season.id);
       console.log("No file found. Linked:", hasLinked);
       
       if (!hasLinked) {
         console.log("Attempting to auto-link source...");
-        elements.standingsStatus.textContent = season.sourceMode === SOURCE_MODES.dropbox
+        elements.standingsStatus.textContent = isDropboxBrowserMode(season)
           ? "Connexion Dropbox en cours..."
           : "Liaison du dossier LGS en cours...";
         
         const linked = await linkSeasonFolder();
         if (!linked) {
-          elements.standingsStatus.innerHTML = season.sourceMode === SOURCE_MODES.dropbox
+          elements.standingsStatus.innerHTML = isDropboxBrowserMode(season)
             ? "<strong>Aucun fichier trouve.</strong><br>Connectez Dropbox puis relancez le rafraichissement."
             : `<strong>Aucun fichier trouve.</strong><br>La liaison au dossier LGS a ete perdue (rechargement de page?). Cliquez sur "Lier le dossier LGS" pour reconnecter, puis revenez ici.`;
           return;
@@ -864,7 +949,7 @@ async function refreshStandings() {
     }
     
     console.log("Reading file:", fileInfo.name, "from folder:", fileInfo.folder);
-    const file = season.sourceMode === SOURCE_MODES.dropbox
+    const file = isDropboxBrowserMode(season)
       ? await dropboxDownload(fileInfo.path)
       : await fileInfo.handle.getFile();
     const arrayBuffer = await file.arrayBuffer();
@@ -895,12 +980,12 @@ async function refreshStandings() {
     // Extract per-tour competition dates from the RMS export files (column B, row 1)
     // Format: "16.08.2026" → "16 août"  — one file per tour folder
     const tourDateMap = {};
-    const rmsSources = season.sourceMode === SOURCE_MODES.dropbox
+    const rmsSources = isDropboxBrowserMode(season)
       ? (fileInfo.rmsPaths || {})
       : (fileInfo.rmsHandles || {});
     for (const [tourKey, rmsSource] of Object.entries(rmsSources)) {
       try {
-        const rmsFile = season.sourceMode === SOURCE_MODES.dropbox
+        const rmsFile = isDropboxBrowserMode(season)
           ? await dropboxDownload(rmsSource)
           : await rmsSource.getFile();
         const rmsBuffer = await rmsFile.arrayBuffer();
@@ -1916,7 +2001,8 @@ document.querySelector("#cancel-dialog-button").addEventListener("click", () => 
 elements.form.addEventListener("submit", createSeason);
 elements.seasonSelect.addEventListener("change", () => { state.activeId = elements.seasonSelect.value; render(); });
 elements.sourceLocalButton.addEventListener("click", () => setSourceMode(SOURCE_MODES.local));
-elements.sourceDropboxButton.addEventListener("click", () => setSourceMode(SOURCE_MODES.dropbox));
+elements.sourceDropboxBrowserButton.addEventListener("click", () => setSourceMode(SOURCE_MODES.dropboxBrowser));
+elements.sourceDropboxServerButton.addEventListener("click", () => setSourceMode(SOURCE_MODES.dropboxServer));
 elements.notes.addEventListener("change", () => { activeSeason().notes = elements.notes.value; saveState(); });
 document.querySelector("#export-button").addEventListener("click", exportSeason);
 elements.linkFolderButton.addEventListener("click", linkSeasonFolder);

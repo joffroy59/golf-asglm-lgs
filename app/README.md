@@ -25,17 +25,18 @@ Deleting a season never deletes Excel files. To prevent accidental removal of th
 ### Source modes
 
 - **Mode local**: select **Lier le dossier LGS** to choose `ASGLM <year>/LGS` from the local filesystem (Edge/Chrome).
-- **Mode Dropbox**: select **Connecter Dropbox**, provide a Dropbox access token, and set the season folder path (for example `/ASGLM 2026/LGS`).
+- **Mode Dropbox cle navigateur**: select **Connecter Dropbox**, provide a Dropbox access token, and set the season folder path (for example `/ASGLM 2026/LGS`).
+- **Mode Dropbox serveur**: select **Configurer serveur Dropbox** and set the backend URL and season path. This mode requires a dedicated server implementation.
 
-Security note: the Dropbox token is kept only for the current browser session and is never exported in the season JSON file.
+Security note: in browser-key mode, the Dropbox token is kept only for the current browser session and is never exported in the season JSON file.
 
 In both modes, the app scans `T1` to `T6` and `Finale` and records detected spreadsheets.
 
-**Ajouter fichier XLS** is available on every tour. In local mode, files are copied into the selected `LGS` folder. In Dropbox mode, files are uploaded to the configured Dropbox tour folder. Existing files are preserved via automatic rename when needed.
+**Ajouter fichier XLS** is available on every tour. In local mode, files are copied into the selected `LGS` folder. In Dropbox browser-key mode, files are uploaded to the configured Dropbox tour folder. Existing files are preserved via automatic rename when needed.
 
 For the pre-linked 2023, 2024, and 2025 archives, **Ouvrir le fichier RMS** opens the catalogued local file directly. For any other season, link its folder first; access granted by the browser is only retained for the current session.
 
-The 2023, 2024, and 2025 seasons are pre-linked to export inventories. Use **Lier le dossier LGS** (local) or **Analyser Dropbox** (Dropbox mode) when a folder changes or when using a different copy of an archive.
+The 2023, 2024, and 2025 seasons are pre-linked to export inventories. Use **Lier le dossier LGS** (local) or **Analyser Dropbox** (Dropbox browser-key mode) when a folder changes or when using a different copy of an archive.
 
 ## Scope
 
@@ -46,7 +47,7 @@ This version tracks each season's seven events (`Tour 1` to `Tour 6` and `Finale
 The dashboard follows this sequence:
 
 1. **Initialization** — Load seasons from browser storage or create new ones
-2. **Source Linking** — Link a local `ASGLM <year>/LGS` folder or connect Dropbox
+2. **Source Linking** — Link a local `ASGLM <year>/LGS` folder, connect Dropbox with a browser-managed key, or use a Dropbox backend server
 3. **File Discovery** — Scan tour folders (`T1`–`T6`, `Finale`) for export files
 4. **Data Parsing** — Extract tour information and standings from Excel files
 5. **Rendering** — Display standings grouped by series and score type (Brut/Net)
