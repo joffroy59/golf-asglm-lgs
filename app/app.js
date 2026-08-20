@@ -543,6 +543,32 @@ async function refreshStandings() {
     }
     
     let sheetsFound = 0;
+
+    // Extract tour dates from the Historique Import sheet
+    // Format: "Calcul du Tour N" → date for TN, "Calcul du Tour 7" → Finale date
+    const tourDates = {};
+    const histSheet = workbook.Sheets["Historique Import"];
+    if (histSheet) {
+      const histData = XLSX.utils.sheet_to_json(histSheet, { header: "A", defval: "" });
+      histData.forEach(row => {
+        const b = String(row.B || "");
+        const f = row.F;
+        const m = b.match(/^Calcul du Tour\s+(\w+)$/i);
+        if (m && f && !isNaN(parseFloat(f))) {
+          // Excel date serial → JS Date (UTC offset correction for local display)
+          const jsDate = new Date(Math.round((parseFloat(f) - 25569) * 86400 * 1000));
+          const label = m[1].trim(); // "1"–"6" → T1–T6, "7" → Finale
+          tourDates[label] = jsDate.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+        }
+      });
+    }
+    // Build a lookup by tab id: { T1: "lun. 18 août", ..., finale: "ven. 22 août" }
+    const tourDateMap = {};
+    for (const [n, dateStr] of Object.entries(tourDates)) {
+      if (n === "7") tourDateMap["finale"] = dateStr;
+      else tourDateMap[`T${n}`] = dateStr;
+    }
+
     for (const [sheetName, category] of Object.entries(categorySheets)) {
       if (!workbook.SheetNames.includes(sheetName)) {
         console.log(`Sheet not found: ${sheetName}`);
@@ -657,7 +683,7 @@ async function refreshStandings() {
       name: fileInfo.name
     };
     
-    renderStandings(standings, fileInfo.name, isFinaleFile, finaleHasBeenPlayed);
+    renderStandings(standings, fileInfo.name, isFinaleFile, finaleHasBeenPlayed, tourDateMap);
   } catch (error) {
     elements.standingsStatus.textContent = "Erreur : Impossible de lire le fichier Excel. Verifiez qu'il n'est pas ouvert.";
     console.error(error);
@@ -722,7 +748,7 @@ function printStandingsPanel(panel, tabLabel, fileName) {
   window.print();
 }
 
-function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false) {
+function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false, tourDateMap = {}) {
   elements.standingsContainer.innerHTML = "";
   elements.standingsStatus.textContent = `Donnees de : ${fileName}`;
   const availableTours = ["T1","T2","T3","T4","T5","T6"];
@@ -735,13 +761,19 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
   );
 
 
+  // Helper: build display label with date suffix when available
+  function withDate(id, baseLabel) {
+    const d = tourDateMap[id];
+    return d ? `${baseLabel} · ${d}` : baseLabel;
+  }
+
   const tabs = [
     { id: "best", label: "Classement" },
-    ...toursWithData.map(t => ({ id: t, label: t })),
+    ...toursWithData.map(t => ({ id: t, label: withDate(t, t) })),
     { id: "all",  label: "Tout" }
   ];
   if (isFinaleFile && finaleHasBeenPlayed) {
-    tabs.splice(1, 0, { id: "finale", label: "Finale" });
+    tabs.splice(1, 0, { id: "finale", label: withDate("finale", "Finale") });
   }
 
   // --- Tab bar + empty panels (append panels to DOM now) ---
@@ -911,10 +943,11 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     for (const tourId of toursWithData) {
       if (!panels[tourId]) continue;
       panels[tourId].appendChild(catHeading());
+      const tourLabel = withDate(tourId, tourId);
       for (const scoreType of scoreTypes) {
-        const tourCols = [{ label: tourId, value: p => p.total, bold: true }];
+        const tourCols = [{ label: tourLabel, value: p => p.total, bold: true }];
         appendTypeSection(
-          panels[tourId], `Classement ${scoreType} — ${tourId}`, seriesNames, seriesData, scoreType,
+          panels[tourId], `Classement ${scoreType} — ${tourLabel}`, seriesNames, seriesData, scoreType,
           (arr, t) => {
             const raw = arr
               .filter(p => p.type === t && p.tourScores && p.tourScores[tourId] !== undefined)
@@ -929,10 +962,11 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     // ── Finale tab ──
     if (panels["finale"]) {
       panels["finale"].appendChild(catHeading());
+      const finaleLabel = withDate("finale", "Finale");
       for (const scoreType of scoreTypes) {
-        const finalCols = [{ label: "Finale", value: p => p.finalScore, bold: true }];
+        const finalCols = [{ label: finaleLabel, value: p => p.finalScore, bold: true }];
         appendTypeSection(
-          panels["finale"], `Classement ${scoreType} — Finale`, seriesNames, seriesData, scoreType,
+          panels["finale"], `Classement ${scoreType} — ${finaleLabel}`, seriesNames, seriesData, scoreType,
           (arr, t) => {
             const raw = arr
               .filter(p => p.type === t && p.finalScore && !isNaN(parseFloat(p.finalScore)))
