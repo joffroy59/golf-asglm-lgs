@@ -1026,7 +1026,21 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
 
     const rankCell = document.createElement("div");
     rankCell.className = "rank";
-    rankCell.textContent = rank;
+    
+    // Add medal emoji for top 3 and colorful styling
+    let rankDisplay = String(rank);
+    if (rank === 1) {
+      rankDisplay = "🥇";
+      rankCell.classList.add("rank-gold");
+    } else if (rank === 2) {
+      rankDisplay = "🥈";
+      rankCell.classList.add("rank-silver");
+    } else if (rank === 3) {
+      rankDisplay = "🥉";
+      rankCell.classList.add("rank-bronze");
+    }
+    
+    rankCell.textContent = rankDisplay;
     row.appendChild(rankCell);
 
     const nameCell = document.createElement("div");

@@ -70,6 +70,9 @@ h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
 .player-row { display: grid; gap: .2rem; padding: .12rem 0; border-bottom: 1px solid #d0d6cd; font-size: .75rem; align-items: center; }
 .player-row:last-of-type { border-bottom: none; }
 .rank { font-weight: 700; text-align: center; color: var(--green); font-size: .72rem; }
+.rank-gold { background: #ffd700; color: #333; padding: .2rem .3rem; border-radius: 3px; font-size: .8rem; }
+.rank-silver { background: #c0c0c0; color: #333; padding: .2rem .3rem; border-radius: 3px; font-size: .8rem; }
+.rank-bronze { background: #cd7f32; color: #fff; padding: .2rem .3rem; border-radius: 3px; font-size: .8rem; }
 .name { font-weight: 600; font-size: .78rem; }
 .score-cell { text-align: right; font-family: "Courier New", monospace; }
 .score-label { display: block; font-size: .58rem; color: var(--muted); margin-bottom: .08rem; font-weight: 500; }
