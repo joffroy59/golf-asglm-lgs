@@ -410,6 +410,8 @@ async function findLatestCalculFile() {
   
   const root = linkedDirectoryHandles.get(season.id);
   const calcFiles = [];
+  // RMS export handles keyed by tour label (T1–T6, Finale)
+  const rmsHandles = {};
   
   console.log("🔍 Scanning linked root:", root.name);
   
@@ -450,6 +452,13 @@ async function findLatestCalculFile() {
             console.log(`        🎯 MATCH: Adding to calcFiles`);
             calcFiles.push({ folder: folderName, handle: entry, name: entry.name });
           }
+
+          // Capture RMS export file ("2d. Extraction XLS globale") per tour folder
+          if (/2d\. Extraction XLS globale/i.test(entry.name) && !rmsHandles[folderName]) {
+            const tourKey = folderName === "Finale" ? "finale" : folderName; // T1..T6, finale
+            rmsHandles[tourKey] = entry;
+            console.log(`        📅 RMS file captured for ${tourKey}: ${entry.name}`);
+          }
         }
       }
       
@@ -469,13 +478,13 @@ async function findLatestCalculFile() {
     const finaleFile = calcFiles.find(f => f.name.includes("Finale"));
     if (finaleFile) {
       console.log("   Selected: Finale file:", finaleFile.name, "from", finaleFile.folder);
-      return finaleFile;
+      return { ...finaleFile, rmsHandles };
     }
     
     // Priority 2: Use the last file (highest tour number)
     const lastFile = calcFiles[calcFiles.length - 1];
     console.log("   Selected: Latest tour file:", lastFile.name, "from", lastFile.folder);
-    return lastFile;
+    return { ...lastFile, rmsHandles };
   }
   
   return null;
@@ -544,29 +553,30 @@ async function refreshStandings() {
     
     let sheetsFound = 0;
 
-    // Extract tour dates from the Historique Import sheet
-    // Format: "Calcul du Tour N" → date for TN, "Calcul du Tour 7" → Finale date
-    const tourDates = {};
-    const histSheet = workbook.Sheets["Historique Import"];
-    if (histSheet) {
-      const histData = XLSX.utils.sheet_to_json(histSheet, { header: "A", defval: "" });
-      histData.forEach(row => {
-        const b = String(row.B || "");
-        const f = row.F;
-        const m = b.match(/^Calcul du Tour\s+(\w+)$/i);
-        if (m && f && !isNaN(parseFloat(f))) {
-          // Excel date serial → JS Date (UTC offset correction for local display)
-          const jsDate = new Date(Math.round((parseFloat(f) - 25569) * 86400 * 1000));
-          const label = m[1].trim(); // "1"–"6" → T1–T6, "7" → Finale
-          tourDates[label] = jsDate.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
-        }
-      });
-    }
-    // Build a lookup by tab id: { T1: "lun. 18 août", ..., finale: "ven. 22 août" }
+    // Extract per-tour competition dates from the RMS export files (column B, row 1)
+    // Format: "16.08.2026" → "16 août"  — one file per tour folder
     const tourDateMap = {};
-    for (const [n, dateStr] of Object.entries(tourDates)) {
-      if (n === "7") tourDateMap["finale"] = dateStr;
-      else tourDateMap[`T${n}`] = dateStr;
+    const rmsHandles = fileInfo.rmsHandles || {};
+    for (const [tourKey, rmsHandle] of Object.entries(rmsHandles)) {
+      try {
+        const rmsFile = await rmsHandle.getFile();
+        const rmsBuffer = await rmsFile.arrayBuffer();
+        const rmsWb = XLSX.read(rmsBuffer, { type: "array" });
+        const rmsSheet = rmsWb.Sheets[rmsWb.SheetNames[0]];
+        if (rmsSheet) {
+          const rmsData = XLSX.utils.sheet_to_json(rmsSheet, { header: "A", defval: "" });
+          // Row 0 = headers, Row 1+ = data; column B holds the date string "DD.MM.YYYY"
+          const dateRaw = String(rmsData[1]?.B || "").trim();
+          const m = dateRaw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+          if (m) {
+            const jsDate = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+            tourDateMap[tourKey] = jsDate.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
+            console.log(`📅 ${tourKey}: ${dateRaw} → ${tourDateMap[tourKey]}`);
+          }
+        }
+      } catch (e) {
+        console.log(`⚠️  Could not read RMS date for ${tourKey}:`, e.message);
+      }
     }
 
     for (const [sheetName, category] of Object.entries(categorySheets)) {
@@ -793,12 +803,11 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
 
   const tabs = [
     { id: "best", label: "Top 10" },
-    ...toursWithData.map(t => ({ id: t, label: withDate(t, t) })),
+    // Always show all T1–T6 tabs + Finale (even without data yet)
+    ...availableTours.map(t => ({ id: t, label: withDate(t, t) })),
+    { id: "finale", label: withDate("finale", "Finale") },
     { id: "all",  label: "Tout" }
   ];
-  if (isFinaleFile && finaleHasBeenPlayed) {
-    tabs.splice(1, 0, { id: "finale", label: withDate("finale", "Finale") });
-  }
 
   // --- Tab bar + empty panels (append panels to DOM now) ---
   const tabBar = document.createElement("div");
@@ -842,33 +851,109 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
   });
   tabBar.appendChild(pdfBtn);
 
-  // Section nav bar — links to score-type-header anchors in the active tab
-  const sectionNav = document.createElement("nav");
-  sectionNav.className = "standings-section-nav";
-  elements.standingsContainer.appendChild(sectionNav);
+  // Section nav — one per panel, prepended at top before content is filled
+  // rebuildSectionNav fills the nav inside the given panel
+  function getOrCreateNav(panel) {
+    let nav = panel.querySelector(":scope > .standings-section-nav");
+    if (!nav) {
+      nav = document.createElement("nav");
+      nav.className = "standings-section-nav";
+      panel.prepend(nav);
+    }
+    return nav;
+  }
 
   function rebuildSectionNav(panel) {
+    const sectionNav = getOrCreateNav(panel);
     sectionNav.innerHTML = "";
-    // Only scan visible content — skip headers inside hidden sub-panels
-    const headers = [...panel.querySelectorAll(".score-type-header[id]")].filter(h => {
-      // Walk up to see if any ancestor within the panel is hidden
-      let el = h.parentElement;
-      while (el && el !== panel) {
-        if (el.hidden) return false;
-        el = el.parentElement;
+
+    function isVisible(el) {
+      let cur = el.parentElement;
+      while (cur && cur !== panel) {
+        if (cur.hidden) return false;
+        cur = cur.parentElement;
       }
       return true;
-    });
-    headers.forEach(h => {
-      const a = document.createElement("a");
-      a.href = "#" + h.id;
-      a.className = "section-nav-link";
-      a.textContent = h.textContent;
-      a.addEventListener("click", e => {
-        e.preventDefault();
-        h.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // Collect all visible cat-headings (HOMME / DAME)
+    const catHeadings = [...panel.querySelectorAll(".cat-heading")].filter(isVisible);
+    if (catHeadings.length === 0) return;
+
+    catHeadings.forEach(catEl => {
+      const catLabel = catEl.dataset.category || catEl.textContent.trim();
+
+      // Outer sex group
+      const catGroup = document.createElement("div");
+      catGroup.className = "section-nav-cat";
+
+      const catBtn = document.createElement("span");
+      catBtn.className = "section-nav-cat-label";
+      catBtn.textContent = catLabel;
+      catGroup.appendChild(catBtn);
+
+      // Collect all score-type-headers that belong to this category
+      // (siblings after catEl, until the next catEl)
+      const scoreHeaders = [];
+      let node = catEl.nextElementSibling;
+      while (node) {
+        if (node.classList && node.classList.contains("cat-heading")) break;
+        // Could be nested in sub-panels — search within
+        const headers = node.classList && node.classList.contains("score-type-header")
+          ? [node]
+          : [...node.querySelectorAll(".score-type-header[id]")];
+        headers.filter(isVisible).forEach(h => scoreHeaders.push(h));
+        node = node.nextElementSibling;
+      }
+
+      const groupsWrap = document.createElement("div");
+      groupsWrap.className = "section-nav-groups";
+
+      scoreHeaders.forEach(h => {
+        const row = document.createElement("div");
+        row.className = "section-nav-group";
+
+        const sectionLink = document.createElement("a");
+        sectionLink.href = "#" + h.id;
+        sectionLink.className = "section-nav-link section-nav-header";
+        sectionLink.textContent = h.textContent;
+        sectionLink.addEventListener("click", e => {
+          e.preventDefault();
+          h.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        row.appendChild(sectionLink);
+
+        // Series chips under this header
+        let sib = h.nextElementSibling;
+        while (sib) {
+          if (sib.classList && sib.classList.contains("score-type-header")) break;
+          if (sib.classList && sib.classList.contains("cat-heading")) break;
+          const groups = sib.classList && sib.classList.contains("series-group")
+            ? [sib]
+            : [...sib.querySelectorAll(".series-group[id]")];
+          groups.filter(isVisible).forEach(sg => {
+            const title = sg.querySelector(".series-title");
+            if (!title || !sg.id) return;
+            const a = document.createElement("a");
+            a.href = "#" + sg.id;
+            a.className = "section-nav-link section-nav-series";
+            a.textContent = title.textContent;
+            a.addEventListener("click", e => {
+              e.preventDefault();
+              sg.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+            row.appendChild(a);
+          });
+          sib = sib.nextElementSibling;
+        }
+
+        groupsWrap.appendChild(row);
       });
-      sectionNav.appendChild(a);
+
+      if (scoreHeaders.length > 0) {
+        catGroup.appendChild(groupsWrap);
+        sectionNav.appendChild(catGroup);
+      }
     });
   }
   // Helper: build an inner sub-tab switcher inside a tour panel
@@ -957,9 +1042,13 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     return row;
   }
 
-  function makeSeriesGroup(seriesName, players, cols) {
+  function makeSeriesGroup(seriesName, players, cols, sectionLabel) {
     const group = document.createElement("div");
     group.className = "series-group";
+    // Unique anchor id: section label + series name
+    const anchorBase = (sectionLabel ? sectionLabel + "-" + seriesName : seriesName)
+      .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    group.id = "sg-" + anchorBase;
 
     const titleRow = document.createElement("div");
     titleRow.style.cssText = "display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem";
@@ -973,6 +1062,23 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     players.forEach(player => {
       group.appendChild(makePlayerRow(player, trueRank(player, players), cols));
     });
+
+    // Back-to-top link
+    const topLink = document.createElement("a");
+    topLink.className = "back-to-top";
+    topLink.href = "#";
+    topLink.textContent = "↑ Haut";
+    topLink.addEventListener("click", e => {
+      e.preventDefault();
+      // Scroll to the section nav at the top of the nearest panel
+      const nearestPanel = group.closest(".standings-tab-panel, [hidden]");
+      const nav = nearestPanel
+        ? nearestPanel.querySelector(".standings-section-nav")
+        : document.querySelector(".standings-section-nav");
+      if (nav) nav.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    group.appendChild(topLink);
+
     return group;
   }
 
@@ -996,7 +1102,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         totalPlayers: players.length,
         top: players.map(p => ({ name: p.name, total: p.total }))
       });
-      panel.appendChild(makeSeriesGroup(sn, players, cols));
+      panel.appendChild(makeSeriesGroup(sn, players, cols, label));
     }
     if (!added) console.log(`appendTypeSection: nothing rendered for "${label}", scoreType=${scoreType}, seriesNames=`, seriesNames);
   }
@@ -1014,6 +1120,8 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       const h = document.createElement("h3");
       h.style.cssText = "margin-top:1.5rem;margin-bottom:.8rem";
       h.textContent = category;
+      h.className = "cat-heading";
+      h.dataset.category = category;
       return h;
     };
 
@@ -1033,10 +1141,23 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     }
 
     // ── Per-tour tabs (sub-tabs: Top 10 / Tous) ──
-    for (const tourId of toursWithData) {
+    for (const tourId of availableTours) {
       if (!panels[tourId]) continue;
-      panels[tourId].appendChild(catHeading());
+      const hasData = toursWithData.includes(tourId);
       const tourLabel = withDate(tourId, tourId);
+
+      if (!hasData) {
+        // Empty tour — show placeholder (only once, not per category)
+        if (category === categories[0]) {
+          const msg = document.createElement("p");
+          msg.style.cssText = "color:#888;font-style:italic;padding:1rem 0";
+          msg.textContent = "Pas encore de données pour ce tour.";
+          panels[tourId].appendChild(msg);
+        }
+        continue;
+      }
+
+      panels[tourId].appendChild(catHeading());
       const tourCols = [{ label: tourLabel, value: p => p.total, bold: true }];
 
       const getTourPlayers = (arr, t, limit) => {
@@ -1074,8 +1195,19 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       ]);
     }
 
-    // ── Finale tab (sub-tabs: Top 10 / Tous) ──
+    // ── Finale tab ──
     if (panels["finale"]) {
+      if (!isFinaleFile || !finaleHasBeenPlayed) {
+        // Show placeholder only once (first category)
+        if (category === categories[0]) {
+          const msg = document.createElement("p");
+          msg.style.cssText = "color:#888;font-style:italic;padding:1rem 0";
+          msg.textContent = isFinaleFile
+            ? "La finale n'a pas encore été jouée."
+            : "Le fichier de la finale n'est pas encore disponible.";
+          panels["finale"].appendChild(msg);
+        }
+      } else {
       panels["finale"].appendChild(catHeading());
       const finaleLabel = withDate("finale", "Finale");
       const finalCols = [{ label: finaleLabel, value: p => p.finalScore, bold: true }];
@@ -1113,7 +1245,8 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
           }
         }
       ]);
-    }
+    } // end else (finale played)
+    } // end if panels["finale"]
 
     // ── Tout tab (all players, no limit) ──
     panels["all"].appendChild(catHeading());
@@ -1134,9 +1267,14 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     }
   }
 
-  // Build nav for the initially visible tab (first tab = "best")
-  const firstPanel = Object.values(panels)[0];
-  if (firstPanel) rebuildSectionNav(firstPanel);
+  // Build nav for all simple panels (best, all, empty tour panels — no sub-tabs)
+  // Tour panels with sub-tabs handle their own nav inside makeTourSubTabs
+  ["best", "all", ...availableTours, "finale"].forEach(id => {
+    const p = panels[id];
+    if (!p) return;
+    // Only rebuild if panel has no tour-subtabs (those handle it themselves)
+    if (!p.querySelector(".tour-subtabs")) rebuildSectionNav(p);
+  });
 }
 
 document.querySelector("#new-season-button").addEventListener("click", () => {
