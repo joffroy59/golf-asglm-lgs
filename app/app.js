@@ -1190,7 +1190,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
       ];
       appendTypeSection(
-        panels["best"], `Top 10 ${scoreType}`, seriesNames, seriesData, scoreType,
+        panels["best"], `${scoreType}`, seriesNames, seriesData, scoreType,
         (arr, t) => sortedWithTies(arr.filter(p => p.type === t), 10),
         totalCols
       );
@@ -1231,7 +1231,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
           buildFn: sp => {
             for (const scoreType of scoreTypes) {
               appendTypeSection(
-                sp, `Top 10 ${scoreType} — ${tourLabel}`, seriesNames, seriesData, scoreType,
+               sp, `${scoreType}`, seriesNames, seriesData, scoreType,
                 (arr, t) => getTourPlayers(arr, t, 10), tourCols
               );
             }
@@ -1242,7 +1242,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
           buildFn: sp => {
             for (const scoreType of scoreTypes) {
               appendTypeSection(
-                sp, `Tous ${scoreType} — ${tourLabel}`, seriesNames, seriesData, scoreType,
+               sp, `${scoreType}`, seriesNames, seriesData, scoreType,
                 (arr, t) => getTourPlayers(arr, t, 0), tourCols
               );
             }
@@ -1283,7 +1283,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
           buildFn: sp => {
             for (const scoreType of scoreTypes) {
               appendTypeSection(
-                sp, `Top 10 ${scoreType} — ${finaleLabel}`, seriesNames, seriesData, scoreType,
+               sp, `${scoreType}`, seriesNames, seriesData, scoreType,
                 (arr, t) => getFinalePlayers(arr, t, 10), finalCols
               );
             }
@@ -1294,7 +1294,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
           buildFn: sp => {
             for (const scoreType of scoreTypes) {
               appendTypeSection(
-                sp, `Tous ${scoreType} — ${finaleLabel}`, seriesNames, seriesData, scoreType,
+               sp, `${scoreType}`, seriesNames, seriesData, scoreType,
                 (arr, t) => getFinalePlayers(arr, t, 0), finalCols
               );
             }
@@ -1313,7 +1313,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
       ];
       appendTypeSection(
-        panels["all"], `Classement ${scoreType} — Complet`, seriesNames, seriesData, scoreType,
+        panels["all"], `${scoreType}`, seriesNames, seriesData, scoreType,
         (arr, t) => [...arr.filter(p => p.type === t)].sort((a, b) => {
           const d = a.total - b.total;
           return d !== 0 ? d : a.name.localeCompare(b.name);
