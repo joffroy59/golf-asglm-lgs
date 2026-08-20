@@ -687,6 +687,41 @@ async function openStandingsFile() {
   }
 }
 
+function printStandingsPanel(panel, tabLabel, fileName) {
+  // Build a print container with title header + cloned panel content
+  const season = activeSeason();
+  const year = season ? season.year : "";
+  const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+
+  let printArea = document.getElementById("lgs-print-area");
+  if (!printArea) {
+    printArea = document.createElement("div");
+    printArea.id = "lgs-print-area";
+    document.body.appendChild(printArea);
+  }
+
+  // Header
+  printArea.innerHTML = `
+    <div class="print-header">
+      <div class="print-logo">LGS</div>
+      <div class="print-title-block">
+        <div class="print-eyebrow">ASGLM — LA GRANDE SEMAINE ${year}</div>
+        <div class="print-tab-name">${tabLabel}</div>
+        <div class="print-source">${fileName} · Imprimé le ${dateStr}</div>
+      </div>
+    </div>
+    <hr class="print-divider">
+  `;
+
+  // Clone the active panel content (strips event listeners, keeps structure)
+  const clone = panel.cloneNode(true);
+  // Remove the "open file" buttons from the clone — they don't work in print
+  clone.querySelectorAll(".open-file-btn").forEach(b => b.remove());
+  printArea.appendChild(clone);
+
+  window.print();
+}
+
 function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false) {
   elements.standingsContainer.innerHTML = "";
   elements.standingsStatus.textContent = `Donnees de : ${fileName}`;
@@ -714,6 +749,9 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
   tabBar.className = "standings-tabs";
   elements.standingsContainer.appendChild(tabBar);
 
+  // Track active tab label for the PDF title
+  let activeTabLabel = tabs[0]?.label ?? "Classement";
+
   const panels = {};
   tabs.forEach((tab, i) => {
     const panel = document.createElement("div");
@@ -730,9 +768,22 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       btn.classList.add("active");
       Object.values(panels).forEach(p => { p.hidden = true; });
       panel.hidden = false;
+      activeTabLabel = tab.label;
     });
     tabBar.appendChild(btn);
   });
+
+  // PDF export button (always visible, exports the currently active tab)
+  const pdfBtn = document.createElement("button");
+  pdfBtn.className = "standings-tab standings-tab-pdf";
+  pdfBtn.textContent = "📄 PDF";
+  pdfBtn.title = "Exporter l'onglet actif en PDF";
+  pdfBtn.addEventListener("click", () => {
+    const activePanel = Object.values(panels).find(p => !p.hidden);
+    if (!activePanel) return;
+    printStandingsPanel(activePanel, activeTabLabel, fileName);
+  });
+  tabBar.appendChild(pdfBtn);
 
   // --- Helpers ---
   function sortedWithTies(players, limit) {
