@@ -30,8 +30,7 @@ const elements = {
   deleteSeasonButton: document.querySelector("#delete-season-button"),
   standingsContainer: document.querySelector("#standings-container"),
   standingsStatus: document.querySelector("#standings-status"),
-  refreshStandingsButton: document.querySelector("#refresh-standings-button"),
-  shareWhatsappButton: document.querySelector("#share-whatsapp-button")
+  refreshStandingsButton: document.querySelector("#refresh-standings-button")
 };
 
 function makeSeason(year, directory) {
@@ -772,6 +771,50 @@ function printStandingsPanel(panel, tabLabel, fileName) {
   window.print();
 }
 
+function shareStandingsPanelToWhatsapp(panel, tabLabel, fileName) {
+  // Extract standings data from the panel
+  const season = activeSeason();
+  const year = season ? season.year : "";
+  
+  // Build text from player rows in the active panel
+  let text = `🏌️ LA GRANDE SEMAINE ${year}\n`;
+  text += `📊 ${tabLabel}\n`;
+  text += `═════════════════════════════\n\n`;
+  
+  // Extract player rows from the visible panel
+  const playerRows = panel.querySelectorAll(".player-row");
+  let rowsAdded = 0;
+  
+  playerRows.forEach(row => {
+    const rank = row.querySelector(".rank")?.textContent.trim() || "";
+    const name = row.querySelector(".name")?.textContent.trim() || "";
+    
+    if (name && rank && rowsAdded < 10) {
+      text += `${rank} ${name}\n`;
+      rowsAdded++;
+    }
+  });
+  
+  if (rowsAdded === 0) {
+    text += "Aucune donnée disponible.\n";
+  }
+  
+  text += `\n─────────────────────────────\n`;
+  text += `Partagé via LGS App\n`;
+  text += `${new Date().toLocaleDateString("fr-FR")}`;
+  
+  // Encode the text for URL
+  const encodedText = encodeURIComponent(text);
+  
+  // Use WhatsApp Web share link
+  // On mobile, this opens the WhatsApp app
+  // On desktop, this opens WhatsApp Web
+  const whatsappUrl = `https://wa.me/?text=${encodedText}`;
+  
+  // Open in new window
+  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+}
+
 function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false, tourDateMap = {}) {
   elements.standingsContainer.innerHTML = "";
   elements.standingsStatus.textContent = `Donnees de : ${fileName}`;
@@ -852,6 +895,18 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     printStandingsPanel(activePanel, activeTabLabel, fileName);
   });
   tabBar.appendChild(pdfBtn);
+
+  // WhatsApp share button (always visible, shares the currently active tab)
+  const whatsappBtn = document.createElement("button");
+  whatsappBtn.className = "standings-tab standings-tab-whatsapp";
+  whatsappBtn.textContent = "📱 Partager";
+  whatsappBtn.title = "Partager l'onglet actif sur WhatsApp";
+  whatsappBtn.addEventListener("click", () => {
+    const activePanel = Object.values(panels).find(p => !p.hidden);
+    if (!activePanel) return;
+    shareStandingsPanelToWhatsapp(activePanel, activeTabLabel, fileName);
+  });
+  tabBar.appendChild(whatsappBtn);
 
   // Section nav — one per panel, prepended at top before content is filled
   // rebuildSectionNav fills the nav inside the given panel
@@ -1476,61 +1531,5 @@ elements.deleteForm.addEventListener("submit", (event) => {
   render();
 });
 elements.refreshStandingsButton.addEventListener("click", refreshStandings);
-elements.shareWhatsappButton.addEventListener("click", shareStandingsToWhatsapp);
-
-function generateShareText() {
-  // Extract standings data from the standings container
-  const container = elements.standingsContainer;
-  if (!container || container.children.length === 0) {
-    return "Pas de classement disponible à partager.";
-  }
-
-  const season = activeSeason();
-  let text = `🏌️ LA GRANDE SEMAINE ${season.year}\n\n`;
-  text += `Résultats du jour\n`;
-  text += `═════════════════\n\n`;
-
-  // Extract player data from visible rows
-  const playerRows = container.querySelectorAll(".player-row");
-  const maxRows = Math.min(playerRows.length, 10); // Limit to top 10
-  
-  let currentCategory = "";
-  let currentSeries = "";
-  
-  for (let i = 0; i < maxRows; i++) {
-    const row = playerRows[i];
-    const rank = row.querySelector(".rank")?.textContent || "";
-    const name = row.querySelector(".name")?.textContent || "";
-    
-    if (name && rank) {
-      text += `${rank} ${name}\n`;
-    }
-  }
-
-  text += `\n─────────────────\n`;
-  text += `Partagé via LGS App\n`;
-  
-  return text;
-}
-
-function shareStandingsToWhatsapp() {
-  const text = generateShareText();
-  
-  if (!text) {
-    alert("Aucun classement à partager");
-    return;
-  }
-
-  // Encode the text for URL
-  const encodedText = encodeURIComponent(text);
-  
-  // Use WhatsApp Web share link (works on desktop and mobile)
-  // On mobile, this will open the WhatsApp app
-  // On desktop, this will open WhatsApp Web
-  const whatsappUrl = `https://wa.me/?text=${encodedText}`;
-  
-  // Open in new window
-  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-}
 
 render();
