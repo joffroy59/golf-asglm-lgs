@@ -25,13 +25,37 @@ Deleting a season never deletes Excel files. To prevent accidental removal of th
 ### Source modes
 
 - **Mode local**: select **Lier le dossier LGS** to choose `ASGLM <year>/LGS` from the local filesystem (Edge/Chrome).
-- **Mode Dropbox**: select **Connecter Dropbox**, provide a Dropbox access token, and set the season folder path (for example `/ASGLM 2026/LGS`).
+- **Mode Dropbox**: select **Configurer Dropbox**, set:
+  - backend URL (for example `https://lgs-api.example.com/api/dropbox`)
+  - proxy access key (shared by admin)
+  - season folder path (for example `/ASGLM 2026/LGS`).
 
-Security note: the Dropbox token is kept only for the current browser session and is never exported in the season JSON file.
+Security note: Dropbox credentials are kept on the server only (environment variable).  
+The browser only receives a proxy access key (via shared link or prompt), never the Dropbox token.
 
 In both modes, the app scans `T1` to `T6` and `Finale` and records detected spreadsheets.
 
-**Ajouter fichier XLS** is available on every tour. In local mode, files are copied into the selected `LGS` folder. In Dropbox mode, files are uploaded to the configured Dropbox tour folder. Existing files are preserved via automatic rename when needed.
+**Ajouter fichier XLS** is available on every tour. In local mode, files are copied into the selected `LGS` folder. In Dropbox mode, files are uploaded through the server to the configured Dropbox tour folder. Existing files are preserved via automatic rename when needed.
+
+## Dropbox server setup
+
+Run a small proxy server from this repository:
+
+```bash
+set DROPBOX_ACCESS_TOKEN=<your_dropbox_access_token>
+set LGS_PROXY_ACCESS_KEY=<shared_proxy_key>
+set ALLOWED_ORIGINS=https://joffroy59.github.io,file://
+set DROPBOX_ALLOWED_ROOT=/ASGLM
+set ENABLE_DROPBOX_UPLOAD=true
+set PORT=8787
+node server/dropbox-proxy.js
+```
+
+Then in the app, choose **Mode Dropbox** and set:
+
+- Server URL: `http://localhost:8787/api/dropbox` (or your hosted server URL)
+- Proxy access key: value of `LGS_PROXY_ACCESS_KEY`
+- Dropbox path: `/ASGLM 2026/LGS` (or other season root)
 
 For the pre-linked 2023, 2024, and 2025 archives, **Ouvrir le fichier RMS** opens the catalogued local file directly. For any other season, link its folder first; access granted by the browser is only retained for the current session.
 

@@ -5,7 +5,9 @@ const SOURCE_MODES = {
   local: "local",
   dropbox: "dropbox"
 };
-const DROPBOX_TOKEN_SESSION_KEY = "lgs-dropbox-access-token-v1";
+const DROPBOX_SERVER_BASE_KEY = "lgs-dropbox-server-base-v1";
+const DROPBOX_PROXY_ACCESS_KEY = "lgs-dropbox-proxy-access-key-v1";
+const DEFAULT_DROPBOX_SERVER_BASE = "";
 const STATUS_LABELS = {
   planned: "A preparer",
   ready: "Export pret",
@@ -132,11 +134,14 @@ function addHistoricalSeasons(savedState) {
 let state = loadState();
 const linkedFileHandles = new Map();
 const linkedDirectoryHandles = new Map();
-let dropboxAccessToken = "";
+let dropboxServerBase = "";
+let dropboxProxyAccessKey = "";
 try {
-  dropboxAccessToken = sessionStorage.getItem(DROPBOX_TOKEN_SESSION_KEY) || "";
+  dropboxServerBase = localStorage.getItem(DROPBOX_SERVER_BASE_KEY) || "";
+  dropboxProxyAccessKey = sessionStorage.getItem(DROPBOX_PROXY_ACCESS_KEY) || "";
 } catch (_) {
-  dropboxAccessToken = "";
+  dropboxServerBase = "";
+  dropboxProxyAccessKey = "";
 }
 
 
@@ -144,18 +149,33 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function hasDropboxToken() {
-  return Boolean(dropboxAccessToken);
+function hasDropboxServerConfig() {
+  return Boolean(String(dropboxServerBase || DEFAULT_DROPBOX_SERVER_BASE).trim() && String(dropboxProxyAccessKey || "").trim());
 }
 
-function setDropboxToken(token) {
-  dropboxAccessToken = String(token || "").trim();
+function setDropboxServerBase(value) {
+  const trimmed = String(value || "").trim();
+  dropboxServerBase = trimmed;
   try {
-    if (dropboxAccessToken) sessionStorage.setItem(DROPBOX_TOKEN_SESSION_KEY, dropboxAccessToken);
-    else sessionStorage.removeItem(DROPBOX_TOKEN_SESSION_KEY);
+    if (dropboxServerBase) localStorage.setItem(DROPBOX_SERVER_BASE_KEY, dropboxServerBase);
+    else localStorage.removeItem(DROPBOX_SERVER_BASE_KEY);
   } catch (_) {
-    // Keep token in-memory only if sessionStorage is unavailable.
+    // Keep in-memory fallback if localStorage is unavailable.
   }
+}
+
+function setDropboxProxyAccessKey(value) {
+  dropboxProxyAccessKey = String(value || "").trim();
+  try {
+    if (dropboxProxyAccessKey) sessionStorage.setItem(DROPBOX_PROXY_ACCESS_KEY, dropboxProxyAccessKey);
+    else sessionStorage.removeItem(DROPBOX_PROXY_ACCESS_KEY);
+  } catch (_) {
+    // Keep in-memory fallback if sessionStorage is unavailable.
+  }
+}
+
+function dropboxApiBase() {
+  return (dropboxServerBase || DEFAULT_DROPBOX_SERVER_BASE).replace(/\/+$/, "");
 }
 
 function ensureDropboxPath(path, seasonYear) {
@@ -171,12 +191,12 @@ function tourFolderName(tour) {
 }
 
 async function dropboxApiJson(url, payload) {
-  if (!hasDropboxToken()) throw new Error("DROPBOX_TOKEN_MISSING");
+  if (!hasDropboxServerConfig()) throw new Error("DROPBOX_SERVER_NOT_CONFIGURED");
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${dropboxAccessToken}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "X-LGS-Proxy-Key": dropboxProxyAccessKey
     },
     body: JSON.stringify(payload)
   });
@@ -189,50 +209,60 @@ async function dropboxApiJson(url, payload) {
 
 async function dropboxListFolder(path) {
   try {
-    const result = await dropboxApiJson("https://api.dropboxapi.com/2/files/list_folder", { path });
+    const result = await dropboxApiJson(`${dropboxApiBase()}/list-folder`, { path });
     return result.entries || [];
   } catch (error) {
-    if (/path\/not_found/i.test(String(error.message))) return [];
+    if (/path\/not_found/i.test(String(error.message)) || /DROPBOX_PATH_NOT_FOUND/i.test(String(error.message))) return [];
     throw error;
   }
 }
 
 async function dropboxDownload(path) {
-  if (!hasDropboxToken()) throw new Error("DROPBOX_TOKEN_MISSING");
-  const response = await fetch("https://content.dropboxapi.com/2/files/download", {
+  if (!hasDropboxServerConfig()) throw new Error("DROPBOX_SERVER_NOT_CONFIGURED");
+  const response = await fetch(`${dropboxApiBase()}/download`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${dropboxAccessToken}`,
-      "Dropbox-API-Arg": JSON.stringify({ path })
-    }
+      "Content-Type": "application/json",
+      "X-LGS-Proxy-Key": dropboxProxyAccessKey
+    },
+    body: JSON.stringify({ path })
   });
   if (!response.ok) {
     const details = await response.text();
     throw new Error(`DROPBOX_DOWNLOAD_ERROR ${response.status}: ${details}`);
   }
-  const fileBlob = await response.blob();
+  const arrayBuffer = await response.arrayBuffer();
   return {
-    name: response.headers.get("Dropbox-API-Result") ? JSON.parse(response.headers.get("Dropbox-API-Result")).name : path.split("/").pop(),
-    arrayBuffer: () => fileBlob.arrayBuffer()
+    name: response.headers.get("X-Dropbox-File-Name") || path.split("/").pop(),
+    arrayBuffer: async () => arrayBuffer
   };
 }
 
+async function dropboxTemporaryLink(path) {
+  const result = await dropboxApiJson(`${dropboxApiBase()}/temporary-link`, { path });
+  return result?.link || "";
+}
+
 async function dropboxUpload(path, file) {
-  if (!hasDropboxToken()) throw new Error("DROPBOX_TOKEN_MISSING");
-  const response = await fetch("https://content.dropboxapi.com/2/files/upload", {
+  if (!hasDropboxServerConfig()) throw new Error("DROPBOX_SERVER_NOT_CONFIGURED");
+  const fileBuffer = await file.arrayBuffer();
+  const uint8 = new Uint8Array(fileBuffer);
+  let binary = "";
+  for (let offset = 0; offset < uint8.length; offset += 0x8000) {
+    binary += String.fromCharCode(...uint8.subarray(offset, Math.min(offset + 0x8000, uint8.length)));
+  }
+  const contentBase64 = btoa(binary);
+  const response = await fetch(`${dropboxApiBase()}/upload`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${dropboxAccessToken}`,
-      "Content-Type": "application/octet-stream",
-      "Dropbox-API-Arg": JSON.stringify({
-        path,
-        mode: "add",
-        autorename: true,
-        mute: false,
-        strict_conflict: false
-      })
+      "Content-Type": "application/json",
+      "X-LGS-Proxy-Key": dropboxProxyAccessKey
     },
-    body: file
+    body: JSON.stringify({
+      path,
+      fileName: file.name,
+      contentBase64
+    })
   });
   if (!response.ok) {
     const details = await response.text();
@@ -264,10 +294,10 @@ function render() {
   elements.sourceDropboxButton.setAttribute("aria-pressed", String(isDropboxMode));
   elements.linkFolderButton.disabled = false;
   elements.linkFolderButton.textContent = isDropboxMode
-    ? (hasDropboxToken() ? "Analyser Dropbox" : "Connecter Dropbox")
+    ? (hasDropboxServerConfig() ? "Analyser Dropbox" : "Configurer Dropbox")
     : "Lier le dossier LGS";
   elements.linkFolderButton.title = isDropboxMode
-    ? "Connecter puis analyser le dossier Dropbox de cette saison."
+    ? "Configurer le serveur Dropbox puis analyser le dossier de cette saison."
     : "Lier le dossier LGS local pour analyser les fichiers.";
   elements.scanResult.textContent = season.sourceMessage
     || season.catalogMessage
@@ -307,15 +337,15 @@ function renderTours(season) {
     openButton.disabled = !canOpenTourFile(season, tour);
     openButton.title = openButton.disabled
       ? (isDropboxMode
-        ? "Connectez Dropbox et relancez l'analyse pour ouvrir ce fichier."
+        ? "Configurez le serveur Dropbox et relancez l'analyse pour ouvrir ce fichier."
         : "Liez le dossier LGS pour ouvrir ce fichier.")
       : `Ouvrir ${tour.file}`;
     uploadButton.disabled = isDropboxMode
-      ? !hasDropboxToken() || !window.showOpenFilePicker
+      ? !hasDropboxServerConfig() || !window.showOpenFilePicker
       : !window.showOpenFilePicker || !window.showDirectoryPicker;
     uploadButton.title = isDropboxMode
       ? (uploadButton.disabled
-        ? "Connectez Dropbox pour ajouter un fichier."
+        ? "Configurez le serveur Dropbox pour ajouter un fichier."
         : `Ajouter un fichier dans ${tour.name} sur Dropbox`)
       : (uploadButton.disabled
         ? "Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier."
@@ -338,7 +368,7 @@ function fileHandleKey(seasonId, tourNumber) {
 
 function canOpenTourFile(season, tour) {
   if (season.sourceMode === SOURCE_MODES.dropbox) {
-    return hasDropboxToken() && Boolean(tour.file);
+    return hasDropboxServerConfig() && Boolean(tour.file);
   }
   return linkedFileHandles.has(fileHandleKey(season.id, tour.number)) || Boolean(knownRmsHref(season, tour));
 }
@@ -360,13 +390,12 @@ async function openRmsFile(seasonId, tourNumber) {
   try {
     let url = "";
     if (season.sourceMode === SOURCE_MODES.dropbox) {
-      if (!hasDropboxToken()) {
-        alert("Connectez Dropbox puis reessayez.");
+      if (!hasDropboxServerConfig()) {
+        alert("Configurez le serveur Dropbox puis reessayez.");
         return;
       }
       const dropboxFilePath = `${ensureDropboxPath(season.dropboxPath, season.year)}/${tourFolderName(tour)}/${tour.file}`;
-      const tempLink = await dropboxApiJson("https://api.dropboxapi.com/2/files/get_temporary_link", { path: dropboxFilePath });
-      url = tempLink?.link || "";
+      url = await dropboxTemporaryLink(dropboxFilePath);
     } else {
       url = handle
         ? URL.createObjectURL(await handle.getFile())
@@ -393,7 +422,7 @@ async function addResultFile(seasonId, tourNumber) {
       alert("Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier.");
       return;
     }
-    if (!hasDropboxToken()) {
+    if (!hasDropboxServerConfig()) {
       const connected = await connectAndScanDropboxSeason(season);
       if (!connected) return;
     }
@@ -491,9 +520,9 @@ function sourceLabel(files) {
 
 function currentSourceInfo(season) {
   if (season.sourceMode === SOURCE_MODES.dropbox) {
-    return hasDropboxToken()
-      ? `Ressource active : Dropbox (${season.dropboxPath})`
-      : `Ressource active : Dropbox non connecte (${season.dropboxPath})`;
+    return hasDropboxServerConfig()
+      ? `Ressource active : Dropbox via serveur (${season.dropboxPath})`
+      : `Ressource active : Dropbox serveur non configure (${season.dropboxPath})`;
   }
   const linkedRoot = linkedDirectoryHandles.get(season.id);
   return linkedRoot
@@ -506,7 +535,7 @@ function setSourceMode(mode) {
   if (season.sourceMode === mode) return;
   season.sourceMode = mode;
   season.sourceMessage = mode === SOURCE_MODES.dropbox
-    ? "Mode Dropbox actif. Cliquez sur \"Connecter Dropbox\" pour analyser les fichiers."
+    ? "Mode Dropbox actif. Configurez le serveur puis analysez les fichiers."
     : "Mode local actif. Utilisez \"Lier le dossier LGS\" pour scanner les fichiers.";
   if (mode === SOURCE_MODES.dropbox) {
     linkedDirectoryHandles.delete(season.id);
@@ -517,14 +546,27 @@ function setSourceMode(mode) {
 }
 
 async function connectAndScanDropboxSeason(season) {
-  const existingTokenHint = hasDropboxToken()
-    ? "Token deja charge pour cette session navigateur. Laissez vide pour le conserver."
-    : "Le token est conserve uniquement pour la session en cours (jamais exporte).";
-  const tokenInput = window.prompt(`Access token Dropbox (Scoped App)\n${existingTokenHint}`, "");
-  if (tokenInput === null) return false;
-  if (tokenInput.trim()) setDropboxToken(tokenInput.trim());
-  if (!hasDropboxToken()) {
-    alert("Un access token Dropbox est requis.");
+  const currentServerBase = dropboxApiBase();
+  const serverInput = window.prompt(
+    "URL de base du serveur Dropbox (ex: https://lgs-api.example.com/api/dropbox)",
+    currentServerBase || ""
+  );
+  if (serverInput === null) return false;
+  setDropboxServerBase(serverInput.trim());
+  if (!dropboxApiBase()) {
+    alert("Une URL serveur Dropbox est requise.");
+    return false;
+  }
+  if (!dropboxProxyAccessKey) {
+    const keyInput = window.prompt(
+      "Cle d'acces du proxy Dropbox (partagee via le lien d'acces)",
+      ""
+    );
+    if (keyInput === null) return false;
+    setDropboxProxyAccessKey(keyInput.trim());
+  }
+  if (!hasDropboxServerConfig()) {
+    alert("L'URL serveur et la cle d'acces du proxy Dropbox sont requises.");
     return false;
   }
 
@@ -539,8 +581,8 @@ async function connectAndScanDropboxSeason(season) {
     return true;
   } catch (error) {
     console.error(error);
-    season.sourceMessage = "Connexion Dropbox echouee. Verifiez le token et le chemin.";
-    alert("Impossible de lire Dropbox. Verifiez le token et le chemin du dossier LGS.");
+    season.sourceMessage = "Connexion serveur Dropbox echouee. Verifiez l'URL serveur, la cle serveur Dropbox et le chemin.";
+    alert("Impossible de lire Dropbox via le serveur. Verifiez la configuration du serveur (token Dropbox) et le chemin du dossier LGS.");
     return false;
   }
 }
@@ -787,7 +829,7 @@ async function findLatestCalculFile() {
 }
 
 async function findLatestCalculFileDropbox(season) {
-  if (!hasDropboxToken()) return null;
+  if (!hasDropboxServerConfig()) return null;
   const basePath = ensureDropboxPath(season.dropboxPath, season.year);
   const calcFiles = [];
   const rmsPaths = {};
@@ -835,7 +877,7 @@ async function refreshStandings() {
     
     if (!fileInfo) {
       const hasLinked = season.sourceMode === SOURCE_MODES.dropbox
-        ? hasDropboxToken()
+        ? hasDropboxServerConfig()
         : linkedDirectoryHandles.has(season.id);
       console.log("No file found. Linked:", hasLinked);
       
@@ -848,7 +890,7 @@ async function refreshStandings() {
         const linked = await linkSeasonFolder();
         if (!linked) {
           elements.standingsStatus.innerHTML = season.sourceMode === SOURCE_MODES.dropbox
-            ? "<strong>Aucun fichier trouve.</strong><br>Connectez Dropbox puis relancez le rafraichissement."
+            ? "<strong>Aucun fichier trouve.</strong><br>Configurez le serveur Dropbox puis relancez le rafraichissement."
             : `<strong>Aucun fichier trouve.</strong><br>La liaison au dossier LGS a ete perdue (rechargement de page?). Cliquez sur "Lier le dossier LGS" pour reconnecter, puis revenez ici.`;
           return;
         }
@@ -1943,5 +1985,4 @@ elements.deleteForm.addEventListener("submit", (event) => {
   render();
 });
 elements.refreshStandingsButton.addEventListener("click", refreshStandings);
-
 render();
