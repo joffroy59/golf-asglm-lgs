@@ -28,9 +28,9 @@ Deleting a season never deletes Excel files. To prevent accidental removal of th
 - **Mode Dropbox**: select **Configurer Dropbox**, set:
   - backend URL (for example `https://lgs-api.example.com/api/dropbox`)
   - proxy access key (shared by admin)
-  - season folder path (for example `/ASGLM 2026/LGS`).
+  - season folder path (for example `/ASGLM 2019/ASGLM 2026/LGS`).
 
-Security note: Dropbox credentials are kept on the server only (environment variable).  
+Security note: Dropbox credentials are kept on the server only (environment variable).
 The browser only receives a proxy access key (via shared link or prompt), never the Dropbox token.
 
 In both modes, the app scans `T1` to `T6` and `Finale` and records detected spreadsheets.
@@ -55,7 +55,7 @@ Then in the app, choose **Mode Dropbox** and set:
 
 - Server URL: `http://localhost:8787/api/dropbox` (or your hosted server URL)
 - Proxy access key: value of `LGS_PROXY_ACCESS_KEY`
-- Dropbox path: `/ASGLM 2026/LGS` (or other season root)
+- Dropbox path: `/ASGLM 2019/ASGLM 2026/LGS` (or other season root)
 
 For the pre-linked 2023, 2024, and 2025 archives, **Ouvrir le fichier RMS** opens the catalogued local file directly. For any other season, link its folder first; access granted by the browser is only retained for the current session.
 
