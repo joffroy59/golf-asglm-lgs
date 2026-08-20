@@ -60,6 +60,7 @@ h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
 .notes-panel, .setup-panel, .archive-panel, .standings-panel { margin-top: 2rem; padding: 1.4rem; border-top: 3px solid var(--green); background: #e5eadf; }
 .standings-panel { display: grid; grid-template-columns: minmax(250px, 1fr) auto; gap: 2rem; align-items: start; }
 .standings-panel > div { grid-column: 1; }
+.standings-controls { grid-column: 2; grid-row: 1; display: flex; gap: .8rem; flex-direction: column; }
 .standings-panel > button { grid-column: 2; grid-row: 1 / 3; }
 .standings-panel > div > p { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
 .standings-container { grid-column: 1 / -1; margin-top: 1rem; }
