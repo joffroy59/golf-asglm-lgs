@@ -1080,12 +1080,16 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     topLink.textContent = "↑ Haut";
     topLink.addEventListener("click", e => {
       e.preventDefault();
-      // Scroll to the section nav at the top of the nearest panel
-      const nearestPanel = group.closest(".standings-tab-panel, [hidden]");
-      const nav = nearestPanel
-        ? nearestPanel.querySelector(".standings-section-nav")
-        : document.querySelector(".standings-section-nav");
-      if (nav) nav.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Scroll to the section nav at the top of the current panel
+      const nearestPanel = group.closest(".standings-tab-panel");
+      if (nearestPanel) {
+        const nav = nearestPanel.querySelector(".standings-section-nav");
+        if (nav) {
+          nav.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          nearestPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
     });
     group.appendChild(topLink);
 
