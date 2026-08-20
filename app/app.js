@@ -528,6 +528,20 @@ async function refreshStandings() {
     const categorySheets = { "Resultat LGS (HOMME)": "HOMME", "Resultat LGS (DAME)": "DAME" };
     const isFinaleFile = fileInfo.name.toLowerCase().includes("finale");
     
+    // Detect if finale has actually been played: check if AF column has any numeric value
+    let finaleHasBeenPlayed = false;
+    if (isFinaleFile) {
+      const checkSheet = workbook.Sheets["Resultat LGS (HOMME)"] || workbook.Sheets["Resultat LGS (DAME)"];
+      if (checkSheet) {
+        const checkData = XLSX.utils.sheet_to_json(checkSheet, { header: "A", defval: "" });
+        finaleHasBeenPlayed = checkData.slice(1).some(row => {
+          const val = row.AF;
+          return val !== "" && val !== null && !isNaN(parseFloat(val));
+        });
+      }
+      console.log(`Finale file: finale played = ${finaleHasBeenPlayed}`);
+    }
+    
     let sheetsFound = 0;
     for (const [sheetName, category] of Object.entries(categorySheets)) {
       if (!workbook.SheetNames.includes(sheetName)) {
@@ -535,7 +549,7 @@ async function refreshStandings() {
         continue;
       }
       
-      console.log(`Processing sheet: ${sheetName}, Finale file: ${isFinaleFile}`);
+      console.log(`Processing sheet: ${sheetName}, Finale file: ${isFinaleFile}, Finale played: ${finaleHasBeenPlayed}`);
       sheetsFound++;
       const sheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(sheet, { header: "A", defval: "" });
@@ -590,18 +604,20 @@ async function refreshStandings() {
         
         // Add NET score if available and valid
         if (totalScoreNET && totalScoreNET !== "") {
-          // For Finale file: only include if has final score (not "En cours")
-          const finalScoreNETValid = !isFinaleFile || (finalScoreNET && finalScoreNET !== "En cours" && finalScoreNET !== "");
+          // Only filter by final score if finale has actually been played
+          const finalScoreNETValid = !(isFinaleFile && finaleHasBeenPlayed) || (finalScoreNET && finalScoreNET !== "En cours" && finalScoreNET !== "");
           
           if (finalScoreNETValid) {
             if (!bySeriesAndTotal[seriesKey]) bySeriesAndTotal[seriesKey] = [];
+            const netTotal = parseFloat(totalScoreNET);
+            if (isNaN(netTotal)) { skippedRecords++; return; }
             const netRecord = {
               name,
               series: String(series).trim(),
               type: "NET",
               dayScore: String(dayScoreNET).trim(),
               finalScore: String(finalScoreNET).trim(),
-              total: parseFloat(totalScoreNET) || 0,
+              total: netTotal,
               totalScore: String(totalScoreNET).trim()
             };
             if (name.toLowerCase().includes("salgado")) {
@@ -609,7 +625,7 @@ async function refreshStandings() {
             }
             bySeriesAndTotal[seriesKey].push(netRecord);
             validRecords++;
-          } else if (isFinaleFile) {
+          } else if (isFinaleFile && finaleHasBeenPlayed) {
             skippedRecords++;
             if (name.toLowerCase().includes("salgado")) {
               console.log(`  ❌ NET record SKIPPED (Finale without final score)`);
@@ -619,18 +635,20 @@ async function refreshStandings() {
         
         // Add BRUT score if available
         if (totalScoreBRUT && totalScoreBRUT !== "") {
-          // For Finale file: only include if has final score (not "En cours")
-          const finalScoreBRUTValid = !isFinaleFile || (finalScoreBRUT && finalScoreBRUT !== "En cours" && finalScoreBRUT !== "");
+          // Only filter by final score if finale has actually been played
+          const finalScoreBRUTValid = !(isFinaleFile && finaleHasBeenPlayed) || (finalScoreBRUT && finalScoreBRUT !== "En cours" && finalScoreBRUT !== "");
           
           if (finalScoreBRUTValid) {
             if (!bySeriesAndTotal[seriesKey]) bySeriesAndTotal[seriesKey] = [];
+            const brutTotal = parseFloat(totalScoreBRUT);
+            if (isNaN(brutTotal)) { skippedRecords++; return; }
             const brutRecord = {
               name,
               series: String(series).trim(),
               type: "BRUT",
               dayScore: String(dayScoreBRUT).trim(),
               finalScore: String(finalScoreBRUT).trim(),
-              total: parseFloat(totalScoreBRUT) || 0,
+              total: brutTotal,
               totalScore: String(totalScoreBRUT).trim()
             };
             if (name.toLowerCase().includes("salgado")) {
@@ -638,16 +656,14 @@ async function refreshStandings() {
             }
             bySeriesAndTotal[seriesKey].push(brutRecord);
             validRecords++;
-          } else if (isFinaleFile) {
+          } else if (isFinaleFile && finaleHasBeenPlayed) {
             skippedRecords++;
             if (name.toLowerCase().includes("salgado")) {
               console.log(`  ❌ BRUT record SKIPPED (Finale without final score)`);
             }
           }
         } else if (name.toLowerCase().includes("salgado")) {
-          console.log(`  ❌ BRUT record SKIPPED (empty):`, {
-            totalScoreBRUT
-          });
+          console.log(`  ❌ BRUT record SKIPPED (empty):`, { totalScoreBRUT });
         }
       });
       
@@ -737,23 +753,26 @@ function renderStandings(standings, fileName) {
         const players = seriesData[seriesName].filter(p => p.type === scoreType);
         if (players.length === 0) continue;
          
-        players.sort((a, b) => a.total - b.total);
+        players.sort((a, b) => {
+          const diff = a.total - b.total;
+          if (diff !== 0) return diff;
+          return a.name.localeCompare(b.name); // alphabetical tiebreak
+        });
          
         // Get top 5 with ties: include all players tied at the 5th position
-        let top5 = players.slice(0, 5);
-        if (top5.length === 5) {
-          const fifthPlaceScore = top5[4].total;
-          // Include all players with the same score as 5th place
-          top5 = players.filter(p => p.total <= fifthPlaceScore);
+        let topPlayers = players.slice(0, 5);
+        if (players.length > 5) {
+          const fifthPlaceScore = topPlayers[4].total;
+          // Also include any beyond position 5 who share the same score
+          const tied = players.slice(5).filter(p => p.total === fifthPlaceScore);
+          topPlayers = topPlayers.concat(tied);
         }
          
         // Debug: Log Serie 1 BRUT
-        if (seriesName === "1" && scoreType === "BRUT") {
+        if (scoreType === "BRUT") {
           console.log(`📊 Serie ${seriesName} ${scoreType}:`, {
             totalPlayers: players.length,
-            allPlayers: players.map(p => ({ name: p.name, total: p.total, totalScore: p.totalScore })),
-            top5Players: top5.map(p => ({ name: p.name, total: p.total })),
-            top5Count: top5.length
+            top: topPlayers.map(p => ({ name: p.name, total: p.total }))
           });
         }
         
@@ -789,13 +808,15 @@ function renderStandings(standings, fileName) {
         
         seriesGroup.appendChild(seriesTitleContainer);
         
-        top5.forEach((player, index) => {
+        topPlayers.forEach((player, index) => {
           const row = document.createElement("div");
           row.className = "player-row";
           
           const rankCell = document.createElement("div");
           rankCell.className = "rank";
-          rankCell.textContent = String(index + 1);
+          // Compute true rank: count how many players scored strictly less
+          const trueRank = topPlayers.filter(p => p.total < player.total).length + 1;
+          rankCell.textContent = String(trueRank);
           
           const nameCell = document.createElement("div");
           nameCell.className = "name";
