@@ -772,47 +772,100 @@ function printStandingsPanel(panel, tabLabel, fileName) {
 }
 
 function shareStandingsPanelToWhatsapp(panel, tabLabel, fileName) {
-  // Extract standings data from the panel
+  // Generate a PDF like printStandingsPanel does
   const season = activeSeason();
   const year = season ? season.year : "";
-  
-  // Build text from player rows in the active panel
-  let text = `🏌️ LA GRANDE SEMAINE ${year}\n`;
-  text += `📊 ${tabLabel}\n`;
-  text += `═════════════════════════════\n\n`;
-  
-  // Extract player rows from the visible panel
-  const playerRows = panel.querySelectorAll(".player-row");
-  let rowsAdded = 0;
-  
-  playerRows.forEach(row => {
-    const rank = row.querySelector(".rank")?.textContent.trim() || "";
-    const name = row.querySelector(".name")?.textContent.trim() || "";
-    
-    if (name && rank && rowsAdded < 10) {
-      text += `${rank} ${name}\n`;
-      rowsAdded++;
-    }
-  });
-  
-  if (rowsAdded === 0) {
-    text += "Aucune donnée disponible.\n";
+  const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+
+  // Build HTML content with title header + cloned panel content
+  let printArea = document.getElementById("lgs-print-area");
+  if (!printArea) {
+    printArea = document.createElement("div");
+    printArea.id = "lgs-print-area";
+    document.body.appendChild(printArea);
   }
-  
-  text += `\n─────────────────────────────\n`;
-  text += `Partagé via LGS App\n`;
-  text += `${new Date().toLocaleDateString("fr-FR")}`;
-  
-  // Encode the text for URL
-  const encodedText = encodeURIComponent(text);
-  
-  // Use WhatsApp Web share link
-  // On mobile, this opens the WhatsApp app
-  // On desktop, this opens WhatsApp Web
-  const whatsappUrl = `https://wa.me/?text=${encodedText}`;
-  
-  // Open in new window
-  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+
+  // Create print header
+  const headerHTML = `
+    <div class="print-header">
+      <div class="print-logo">LGS</div>
+      <div class="print-title-block">
+        <div class="print-eyebrow">ASGLM — LA GRANDE SEMAINE ${year}</div>
+        <div class="print-tab-name">${tabLabel}</div>
+        <div class="print-source">${fileName} · Partagé le ${dateStr}</div>
+      </div>
+    </div>
+    <hr class="print-divider">
+  `;
+
+  // Clone panel and remove buttons
+  const clone = panel.cloneNode(true);
+  clone.querySelectorAll(".open-file-btn").forEach(b => b.remove());
+  clone.querySelectorAll(".standings-tab").forEach(b => b.remove());
+
+  // Create container for PDF content
+  const pdfContent = document.createElement("div");
+  pdfContent.innerHTML = headerHTML;
+  pdfContent.appendChild(clone);
+
+  // Generate PDF using html2pdf
+  const options = {
+    margin: 10,
+    filename: `LGS-${year}-${tabLabel.replace(/\s+/g, "-")}.pdf`,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { orientation: "portrait", unit: "mm", format: "a4" }
+  };
+
+  // Generate PDF as blob
+  html2pdf()
+    .set(options)
+    .from(pdfContent)
+    .outputPdf("blob")
+    .then(blob => {
+      // Try using Web Share API (works on mobile for WhatsApp)
+      if (navigator.share) {
+        navigator.share({
+          title: `LGS ${year} - ${tabLabel}`,
+          text: `Résultats du ${tabLabel}`,
+          files: [
+            new File([blob], `LGS-${year}-${tabLabel.replace(/\s+/g, "-")}.pdf`, { type: "application/pdf" })
+          ]
+        }).catch(err => {
+          // User cancelled or sharing failed
+          console.log("Partage annulé ou échoué:", err);
+          fallbackShare(blob, year, tabLabel);
+        });
+      } else {
+        // Fallback: For desktop or browsers without Web Share API
+        fallbackShare(blob, year, tabLabel);
+      }
+    })
+    .catch(error => {
+      console.error("Erreur lors de la génération du PDF:", error);
+      alert("Impossible de générer le PDF pour le partage.");
+    });
+
+  function fallbackShare(blob, year, tabLabel) {
+    // Create a download link and suggest manual WhatsApp sharing
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `LGS-${year}-${tabLabel.replace(/\s+/g, "-")}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    alert(
+      `Le PDF a été téléchargé.\n\n` +
+      `Pour le partager sur WhatsApp:\n` +
+      `1. Ouvrez WhatsApp\n` +
+      `2. Sélectionnez un contact ou groupe\n` +
+      `3. Cliquez sur le + (Joindre un fichier)\n` +
+      `4. Sélectionnez le fichier PDF téléchargé`
+    );
+  }
 }
 
 function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false, tourDateMap = {}) {
