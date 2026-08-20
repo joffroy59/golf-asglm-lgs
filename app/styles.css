@@ -98,6 +98,13 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
 @media (max-width: 650px) { .shell { width: min(100% - 1.5rem, 1180px); padding-top: 2.2rem; } .hero-row, .season-overview, .archive-panel, .season-actions { align-items: start; flex-direction: column; gap: 1.25rem; } .progress-block { text-align: left; } .notes-panel, .setup-panel { grid-template-columns: 1fr; gap: .5rem; } }
 .standings-tab-pdf { margin-left: auto; border-color: var(--green); color: var(--green); background: var(--card); }
 .standings-tab-pdf:hover { background: var(--lime); color: var(--ink); }
+.standings-section-nav { display: flex; flex-wrap: wrap; gap: .35rem .6rem; padding: .5rem 0 .9rem; border-bottom: 1px solid var(--line); margin-bottom: .6rem; min-height: 2rem; }
+.section-nav-link { color: var(--green); font-family: "Courier New", monospace; font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; text-decoration: none; padding: .2rem .5rem; border: 1px solid transparent; transition: border-color .12s, background .12s; }
+.section-nav-link:hover { border-color: var(--green); background: var(--lime); }
+.tour-subtabs { display: flex; gap: .35rem; margin: .6rem 0 .8rem; }
+.tour-subtab { cursor: pointer; border: 1px solid var(--line); padding: .3rem .7rem; color: var(--muted); background: var(--card); font-family: "Courier New", monospace; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; transition: background .12s; }
+.tour-subtab:hover { background: #e5eadf; color: var(--ink); }
+.tour-subtab.active { border-color: var(--green); color: var(--ink); background: #e5eadf; }
 
 /* ── Print / PDF export ─────────────────────────────────────────────────── */
 #lgs-print-area { display: none; }
@@ -160,6 +167,9 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
   /* Tab system — flatten: just show all content */
   .standings-tab-panel { display: block !important; }
   .standings-tabs { display: none !important; }
+  /* Sub-tabs — hide bar, show active sub-panel only (already the case via hidden attr) */
+  .tour-subtabs { display: none !important; }
+  .tour-subtab-panel { display: block !important; }
 
   /* Series groups */
   .series-group { margin-bottom: 1.4rem; page-break-inside: avoid; }

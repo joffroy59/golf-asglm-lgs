@@ -825,6 +825,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       Object.values(panels).forEach(p => { p.hidden = true; });
       panel.hidden = false;
       activeTabLabel = tab.label;
+      rebuildSectionNav(panel);
     });
     tabBar.appendChild(btn);
   });
@@ -841,7 +842,69 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
   });
   tabBar.appendChild(pdfBtn);
 
-  // --- Helpers ---
+  // Section nav bar — links to score-type-header anchors in the active tab
+  const sectionNav = document.createElement("nav");
+  sectionNav.className = "standings-section-nav";
+  elements.standingsContainer.appendChild(sectionNav);
+
+  function rebuildSectionNav(panel) {
+    sectionNav.innerHTML = "";
+    // Only scan visible content — skip headers inside hidden sub-panels
+    const headers = [...panel.querySelectorAll(".score-type-header[id]")].filter(h => {
+      // Walk up to see if any ancestor within the panel is hidden
+      let el = h.parentElement;
+      while (el && el !== panel) {
+        if (el.hidden) return false;
+        el = el.parentElement;
+      }
+      return true;
+    });
+    headers.forEach(h => {
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.className = "section-nav-link";
+      a.textContent = h.textContent;
+      a.addEventListener("click", e => {
+        e.preventDefault();
+        h.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      sectionNav.appendChild(a);
+    });
+  }
+  // Helper: build an inner sub-tab switcher inside a tour panel
+  // subViews: [{ label, buildFn }] where buildFn(container) fills that sub-view
+  function makeTourSubTabs(panel, subViews) {
+    const bar = document.createElement("div");
+    bar.className = "tour-subtabs";
+    panel.appendChild(bar);
+
+    const subPanels = subViews.map((sv, i) => {
+      const sp = document.createElement("div");
+      sp.hidden = i !== 0;
+      panel.appendChild(sp);
+
+      const btn = document.createElement("button");
+      btn.className = "tour-subtab" + (i === 0 ? " active" : "");
+      btn.textContent = sv.label;
+      btn.addEventListener("click", () => {
+        bar.querySelectorAll(".tour-subtab").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        subPanels.forEach(p => { p.hidden = true; });
+        sp.hidden = false;
+        rebuildSectionNav(sp);
+      });
+      bar.appendChild(btn);
+
+      // Fill the sub-panel now
+      sv.buildFn(sp);
+      return sp;
+    });
+
+    // Initialize nav for first sub-panel
+    if (subPanels[0]) rebuildSectionNav(subPanels[0]);
+  }
+
+
   function sortedWithTies(players, limit) {
     const sorted = [...players].sort((a, b) => {
       const d = a.total - b.total;
@@ -923,6 +986,8 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       if (!added) {
         const h = document.createElement("div");
         h.className = "score-type-header";
+        // Assign a stable anchor id from the label
+        h.id = "section-" + label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
         h.textContent = label;
         panel.appendChild(h);
         added = true;
@@ -967,43 +1032,87 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       );
     }
 
-    // ── Per-tour tabs ──
+    // ── Per-tour tabs (sub-tabs: Top 10 / Tous) ──
     for (const tourId of toursWithData) {
       if (!panels[tourId]) continue;
       panels[tourId].appendChild(catHeading());
       const tourLabel = withDate(tourId, tourId);
-      for (const scoreType of scoreTypes) {
-        const tourCols = [{ label: tourLabel, value: p => p.total, bold: true }];
-        appendTypeSection(
-          panels[tourId], `Classement ${scoreType} — ${tourLabel}`, seriesNames, seriesData, scoreType,
-          (arr, t) => {
-            const raw = arr
-              .filter(p => p.type === t && p.tourScores && p.tourScores[tourId] !== undefined)
-              .map(p => ({ ...p, total: p.tourScores[tourId] }));
-            return sortedWithTies(raw, 5);
-          },
-          tourCols
-        );
-      }
+      const tourCols = [{ label: tourLabel, value: p => p.total, bold: true }];
+
+      const getTourPlayers = (arr, t, limit) => {
+        const raw = arr
+          .filter(p => p.type === t && p.tourScores && p.tourScores[tourId] !== undefined)
+          .map(p => ({ ...p, total: p.tourScores[tourId] }));
+        return limit ? sortedWithTies(raw, limit) : [...raw].sort((a, b) => {
+          const d = a.total - b.total; return d !== 0 ? d : a.name.localeCompare(b.name);
+        });
+      };
+
+      makeTourSubTabs(panels[tourId], [
+        {
+          label: "Top 10",
+          buildFn: sp => {
+            for (const scoreType of scoreTypes) {
+              appendTypeSection(
+                sp, `Top 10 ${scoreType} — ${tourLabel}`, seriesNames, seriesData, scoreType,
+                (arr, t) => getTourPlayers(arr, t, 10), tourCols
+              );
+            }
+          }
+        },
+        {
+          label: "Tous",
+          buildFn: sp => {
+            for (const scoreType of scoreTypes) {
+              appendTypeSection(
+                sp, `Tous ${scoreType} — ${tourLabel}`, seriesNames, seriesData, scoreType,
+                (arr, t) => getTourPlayers(arr, t, 0), tourCols
+              );
+            }
+          }
+        }
+      ]);
     }
 
-    // ── Finale tab ──
+    // ── Finale tab (sub-tabs: Top 10 / Tous) ──
     if (panels["finale"]) {
       panels["finale"].appendChild(catHeading());
       const finaleLabel = withDate("finale", "Finale");
-      for (const scoreType of scoreTypes) {
-        const finalCols = [{ label: finaleLabel, value: p => p.finalScore, bold: true }];
-        appendTypeSection(
-          panels["finale"], `Classement ${scoreType} — ${finaleLabel}`, seriesNames, seriesData, scoreType,
-          (arr, t) => {
-            const raw = arr
-              .filter(p => p.type === t && p.finalScore && !isNaN(parseFloat(p.finalScore)))
-              .map(p => ({ ...p, total: parseFloat(p.finalScore) }));
-            return sortedWithTies(raw, 5);
-          },
-          finalCols
-        );
-      }
+      const finalCols = [{ label: finaleLabel, value: p => p.finalScore, bold: true }];
+
+      const getFinalePlayers = (arr, t, limit) => {
+        const raw = arr
+          .filter(p => p.type === t && p.finalScore && !isNaN(parseFloat(p.finalScore)))
+          .map(p => ({ ...p, total: parseFloat(p.finalScore) }));
+        return limit ? sortedWithTies(raw, limit) : [...raw].sort((a, b) => {
+          const d = a.total - b.total; return d !== 0 ? d : a.name.localeCompare(b.name);
+        });
+      };
+
+      makeTourSubTabs(panels["finale"], [
+        {
+          label: "Top 10",
+          buildFn: sp => {
+            for (const scoreType of scoreTypes) {
+              appendTypeSection(
+                sp, `Top 10 ${scoreType} — ${finaleLabel}`, seriesNames, seriesData, scoreType,
+                (arr, t) => getFinalePlayers(arr, t, 10), finalCols
+              );
+            }
+          }
+        },
+        {
+          label: "Tous",
+          buildFn: sp => {
+            for (const scoreType of scoreTypes) {
+              appendTypeSection(
+                sp, `Tous ${scoreType} — ${finaleLabel}`, seriesNames, seriesData, scoreType,
+                (arr, t) => getFinalePlayers(arr, t, 0), finalCols
+              );
+            }
+          }
+        }
+      ]);
     }
 
     // ── Tout tab (all players, no limit) ──
@@ -1024,6 +1133,10 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       );
     }
   }
+
+  // Build nav for the initially visible tab (first tab = "best")
+  const firstPanel = Object.values(panels)[0];
+  if (firstPanel) rebuildSectionNav(firstPanel);
 }
 
 document.querySelector("#new-season-button").addEventListener("click", () => {
