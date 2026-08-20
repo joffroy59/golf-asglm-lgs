@@ -3,7 +3,7 @@
 ## Project Structure
 The Excel workbook `Calcul La Grande Semaine - STROKEPLAY - Tn - HOMME_OU_DAME_v2.12.xlsm` is the score-calculation source of truth. Exported VBA source lives in `vba/Calcul La Grande Semaine - STROKEPLAY - Tn - HOMME_OU_DAME_v2.12.xlsm.vba/` as `.bas` and `.cls` files. Batch utilities at the root initialize seasons and backups. Sample RMS/FFG exports live in `fichier exemple nom export FFG/`.
 
-`app/` contains the dependency-free browser dashboard for tracking seasons. Keep its metadata separate from Excel calculations and macros.
+`app/` contains the dependency-free browser dashboard for tracking seasons. Keep its metadata separate from Excel calculations and macros. For the complete application architecture and data flow, see [app/architecture.mmd](app/architecture.mmd).
 
 ## Build, Test, and Development
 Run these Windows batch files from the repository root:

@@ -2,6 +2,8 @@
 
 Small local web application to track La Grande Semaine across multiple years.
 
+> **Architecture Overview**: See [architecture.mmd](./architecture.mmd) for a complete flowchart of the application workflow, data flow, and user interactions.
+
 ## Run locally
 
 Open `app/index.html` in a modern browser. No installation, server, or dependency is required.
@@ -31,3 +33,16 @@ The 2023, 2024, and 2025 seasons are pre-linked to the export inventories curren
 ## Scope
 
 This first version tracks each season's eight events (`Tour 1` to `Tour 7` and `Finale`), RMS export file references, validation status, and season notes. Excel/VBA calculation remains the source of truth for scores and rankings.
+
+## Application Flow
+
+The dashboard follows this sequence:
+
+1. **Initialization** — Load seasons from browser storage or create new ones
+2. **Folder Linking** — Link to the `ASGLM <year>/LGS` directory to discover Excel workbooks
+3. **File Discovery** — Scan tour folders (`T1`–`T7`, `Finale`) for export files
+4. **Data Parsing** — Extract tour information and standings from Excel files
+5. **Rendering** — Display standings grouped by series and score type (Brut/Net)
+6. **User Interactions** — Navigate between tours, update status, manage files, and export seasons
+
+For a detailed visual breakdown, see [architecture.mmd](./architecture.mmd).
