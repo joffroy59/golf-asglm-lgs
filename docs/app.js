@@ -1,6 +1,10 @@
 const STORAGE_KEY = "lgs-season-manager-v1";
 const HISTORICAL_YEARS = [2023, 2024, 2025];
 const TOUR_NAMES = ["Tour 1", "Tour 2", "Tour 3", "Tour 4", "Tour 5", "Tour 6", "Finale"];
+const SOURCE_MODES = {
+  local: "local",
+  dropbox: "dropbox"
+};
 const STATUS_LABELS = {
   planned: "A preparer",
   ready: "Export pret",
@@ -14,6 +18,10 @@ const elements = {
   seasonSelect: document.querySelector("#season-select"),
   seasonTitle: document.querySelector("#season-title"),
   seasonPath: document.querySelector("#season-path"),
+  sourceInfo: document.querySelector("#source-info"),
+  sourceLocalButton: document.querySelector("#source-local-button"),
+  sourceDropboxButton: document.querySelector("#source-dropbox-button"),
+  linkFolderButton: document.querySelector("#link-folder-button"),
   tourGrid: document.querySelector("#tour-grid"),
   notes: document.querySelector("#season-notes"),
   progressLabel: document.querySelector("#progress-label"),
@@ -34,10 +42,14 @@ const elements = {
 };
 
 function makeSeason(year, directory) {
+  const seasonYear = Number(year);
   return {
     id: crypto.randomUUID(),
-    year: Number(year),
+    year: seasonYear,
     directory,
+    sourceMode: SOURCE_MODES.local,
+    dropboxPath: `/ASGLM ${seasonYear}/LGS`,
+    sourceMessage: "",
     notes: "",
     tours: TOUR_NAMES.map((name, index) => ({
       name,
@@ -47,6 +59,14 @@ function makeSeason(year, directory) {
       note: ""
     }))
   };
+}
+
+function ensureSeasonDefaults(season) {
+  season.sourceMode = season.sourceMode === SOURCE_MODES.dropbox ? SOURCE_MODES.dropbox : SOURCE_MODES.local;
+  if (typeof season.dropboxPath !== "string" || !season.dropboxPath.trim()) {
+    season.dropboxPath = `/ASGLM ${season.year}/LGS`;
+  }
+  if (typeof season.sourceMessage !== "string") season.sourceMessage = "";
 }
 
 function loadState() {
@@ -66,6 +86,7 @@ function prepareState(savedState) {
     savedState.migrations.removedUninitialized2026 = true;
   }
   addHistoricalSeasons(savedState);
+  savedState.seasons.forEach(ensureSeasonDefaults);
   if (!savedState.seasons.some((season) => season.id === savedState.activeId)) {
     savedState.activeId = savedState.seasons.find((season) => season.year === 2025)?.id || savedState.seasons[0]?.id;
   }
@@ -125,8 +146,22 @@ function render() {
     .sort((a, b) => b.year - a.year)
     .map((item) => new Option(String(item.year), item.id, false, item.id === season.id)));
   elements.seasonTitle.textContent = `Saison ${season.year}`;
-  elements.seasonPath.textContent = season.directory;
-  elements.scanResult.textContent = season.catalogMessage
+  const isDropboxMode = season.sourceMode === SOURCE_MODES.dropbox;
+  elements.seasonPath.textContent = isDropboxMode
+    ? `Dropbox : ${season.dropboxPath}`
+    : season.directory;
+  elements.sourceInfo.textContent = currentSourceInfo(season);
+  elements.sourceLocalButton.classList.toggle("active", !isDropboxMode);
+  elements.sourceLocalButton.setAttribute("aria-pressed", String(!isDropboxMode));
+  elements.sourceDropboxButton.classList.toggle("active", isDropboxMode);
+  elements.sourceDropboxButton.setAttribute("aria-pressed", String(isDropboxMode));
+  elements.linkFolderButton.disabled = isDropboxMode;
+  elements.linkFolderButton.textContent = isDropboxMode ? "Dropbox (bientot)" : "Lier le dossier LGS";
+  elements.linkFolderButton.title = isDropboxMode
+    ? "Le mode Dropbox est affiche pour preparation. La connexion API sera ajoutee dans une prochaine etape."
+    : "Lier le dossier LGS local pour analyser les fichiers.";
+  elements.scanResult.textContent = season.sourceMessage
+    || season.catalogMessage
     || (season.lastScan
       ? `Derniere analyse : ${new Date(season.lastScan).toLocaleDateString("fr-FR")}`
       : "Aucun dossier LGS analyse pour cette saison.");
@@ -159,14 +194,17 @@ function renderTours(season) {
     file.value = tour.file;
     note.value = tour.note;
     sourceSummary.textContent = sourceLabel(tour.sourceFiles || []);
-    openButton.disabled = !canOpenTourFile(season, tour);
-    openButton.title = openButton.disabled
-      ? "Liez le dossier LGS pour ouvrir ce fichier."
-      : `Ouvrir ${tour.file}`;
-    uploadButton.disabled = !window.showOpenFilePicker || !window.showDirectoryPicker;
-    uploadButton.title = uploadButton.disabled
-      ? "Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier."
-      : `Ajouter un fichier dans ${tour.name}`;
+    const isDropboxMode = season.sourceMode === SOURCE_MODES.dropbox;
+    openButton.disabled = isDropboxMode || !canOpenTourFile(season, tour);
+    openButton.title = isDropboxMode
+      ? "Le mode Dropbox est en preparation. Revenez en mode local pour ouvrir un fichier."
+      : (openButton.disabled ? "Liez le dossier LGS pour ouvrir ce fichier." : `Ouvrir ${tour.file}`);
+    uploadButton.disabled = isDropboxMode || !window.showOpenFilePicker || !window.showDirectoryPicker;
+    uploadButton.title = isDropboxMode
+      ? "Le mode Dropbox est en preparation. Revenez en mode local pour ajouter un fichier."
+      : (uploadButton.disabled
+        ? "Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier."
+        : `Ajouter un fichier dans ${tour.name}`);
     status.addEventListener("change", () => updateTour(tour.number, "status", status.value));
     file.addEventListener("change", () => {
       linkedFileHandles.delete(fileHandleKey(season.id, tour.number));
@@ -221,6 +259,10 @@ async function addResultFile(seasonId, tourNumber) {
   let root = linkedDirectoryHandles.get(seasonId);
   const season = state.seasons.find((item) => item.id === seasonId);
   const tour = season?.tours.find((item) => item.number === tourNumber);
+  if (season?.sourceMode === SOURCE_MODES.dropbox) {
+    alert("Le mode Dropbox est en preparation. Repassez en mode local pour ajouter un fichier XLS.");
+    return;
+  }
   if (!season || !tour || !window.showOpenFilePicker) {
     alert("Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier.");
     return;
@@ -277,9 +319,33 @@ async function nextAvailableFileHandle(folder, originalName) {
 }
 
 function sourceLabel(files) {
-  if (!files.length) return "Aucune donnee locale liee";
-  if (files.length === 1) return `Donnee liee : ${files[0]}`;
-  return `${files.length} fichiers Excel lies, dont ${files[0]}`;
+  if (!files.length) return "Aucune donnee source detectee";
+  if (files.length === 1) return `Donnee source : ${files[0]}`;
+  return `${files.length} fichiers sources, dont ${files[0]}`;
+}
+
+function currentSourceInfo(season) {
+  if (season.sourceMode === SOURCE_MODES.dropbox) {
+    return `Ressource active : Dropbox (${season.dropboxPath})`;
+  }
+  const linkedRoot = linkedDirectoryHandles.get(season.id);
+  return linkedRoot
+    ? `Ressource active : Local (${linkedRoot.name})`
+    : "Ressource active : Local (non lie)";
+}
+
+function setSourceMode(mode) {
+  const season = activeSeason();
+  if (season.sourceMode === mode) return;
+  season.sourceMode = mode;
+  season.sourceMessage = mode === SOURCE_MODES.dropbox
+    ? "Mode Dropbox actif. La connexion Dropbox API sera ajoutee dans une prochaine mise a jour."
+    : "Mode local actif. Utilisez \"Lier le dossier LGS\" pour scanner les fichiers.";
+  if (mode === SOURCE_MODES.dropbox) {
+    linkedDirectoryHandles.delete(season.id);
+    season.lastScan = "";
+  }
+  render();
 }
 
 function renderProgress(season) {
@@ -296,6 +362,11 @@ function updateTour(number, key, value) {
 }
 
 async function linkSeasonFolder() {
+  const season = activeSeason();
+  if (season.sourceMode === SOURCE_MODES.dropbox) {
+    alert("Le mode Dropbox est actif. Revenez en mode local pour lier un dossier Windows.");
+    return false;
+  }
   if (!window.showDirectoryPicker) {
     alert("Utilisez Microsoft Edge ou Google Chrome pour lier un dossier LGS.");
     return false;
@@ -315,8 +386,6 @@ async function linkSeasonFolder() {
       alert("Selectionnez le dossier LGS qui contient T1 a T6 et Finale.");
       return false;
     }
-
-    const season = activeSeason();
     linkedDirectoryHandles.set(season.id, root);
     let detectedCount = 0;
     for (const tour of season.tours) {
@@ -341,6 +410,7 @@ async function linkSeasonFolder() {
     }
     season.directory = `Dossier lie : ${root.name}`;
     season.lastScan = new Date().toISOString();
+    season.sourceMessage = "";
     season.catalogMessage = "";
     render();
     elements.scanResult.textContent = `${detectedCount} fichiers Excel detectes dans ${root.name}.`;
@@ -386,6 +456,7 @@ function importSeason(event) {
     try {
       const imported = JSON.parse(reader.result).season;
       if (!imported?.year || !Array.isArray(imported.tours) || imported.tours.length !== TOUR_NAMES.length) throw new Error();
+      ensureSeasonDefaults(imported);
       const existing = state.seasons.findIndex((season) => season.year === imported.year);
       if (existing >= 0) state.seasons[existing] = imported;
       else state.seasons.push(imported);
@@ -491,13 +562,18 @@ async function findLatestCalculFile() {
 }
 
 async function refreshStandings() {
+  const season = activeSeason();
+  if (season.sourceMode === SOURCE_MODES.dropbox) {
+    elements.standingsStatus.textContent = "Mode Dropbox actif : la lecture automatique des fichiers sera disponible dans une prochaine mise a jour.";
+    elements.standingsContainer.innerHTML = "";
+    return;
+  }
   elements.standingsStatus.textContent = "Chargement en cours...";
   elements.standingsContainer.innerHTML = "";
   
   console.log("=== Starting refreshStandings ===");
   
   try {
-    const season = activeSeason();
     let fileInfo = await findLatestCalculFile();
     
     if (!fileInfo) {
@@ -1572,9 +1648,11 @@ document.querySelector("#new-season-button").addEventListener("click", () => {
 document.querySelector("#cancel-dialog-button").addEventListener("click", () => elements.dialog.close());
 elements.form.addEventListener("submit", createSeason);
 elements.seasonSelect.addEventListener("change", () => { state.activeId = elements.seasonSelect.value; render(); });
+elements.sourceLocalButton.addEventListener("click", () => setSourceMode(SOURCE_MODES.local));
+elements.sourceDropboxButton.addEventListener("click", () => setSourceMode(SOURCE_MODES.dropbox));
 elements.notes.addEventListener("change", () => { activeSeason().notes = elements.notes.value; saveState(); });
 document.querySelector("#export-button").addEventListener("click", exportSeason);
-document.querySelector("#link-folder-button").addEventListener("click", linkSeasonFolder);
+elements.linkFolderButton.addEventListener("click", linkSeasonFolder);
 elements.importInput.addEventListener("change", importSeason);
 elements.deleteSeasonButton.addEventListener("click", () => {
   const season = activeSeason();
