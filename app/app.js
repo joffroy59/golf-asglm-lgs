@@ -1080,12 +1080,13 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     topLink.textContent = "↑ Haut";
     topLink.addEventListener("click", e => {
       e.preventDefault();
-      // Scroll to the very top of the current tab panel
+      // Scroll to show the header of current tab panel with context
       const nearestPanel = group.closest(".standings-tab-panel");
       if (nearestPanel) {
         const panelRect = nearestPanel.getBoundingClientRect();
+        // Scroll with -120px offset to show header title and description above tabs
         window.scrollTo({
-          top: window.scrollY + panelRect.top,
+          top: window.scrollY + panelRect.top - 120,
           behavior: "smooth"
         });
       }
