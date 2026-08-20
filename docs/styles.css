@@ -1,0 +1,233 @@
+:root {
+  --ink: #1e2925;
+  --muted: #69736b;
+  --line: #d7ddd4;
+  --paper: #f5f2e9;
+  --card: #fffdf7;
+  --green: #174f42;
+  --lime: #d5ee7b;
+  --orange: #e96b37;
+  --shadow: 0 12px 30px rgba(28, 42, 34, 0.08);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); background: radial-gradient(circle at 100% 0, #dce8b6 0, transparent 30rem), var(--paper); font-family: Georgia, "Times New Roman", serif; }
+button, input, select, textarea { font: inherit; }
+.shell { width: min(1180px, calc(100% - 2.5rem)); margin: 0 auto; padding: 4.5rem 0 3rem; }
+.hero { padding-bottom: 3rem; border-bottom: 1px solid var(--line); }
+.hero-row, .season-overview, .archive-panel { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }
+.eyebrow { margin: 0 0 .55rem; color: var(--green); font-family: "Courier New", monospace; font-size: .72rem; font-weight: 700; letter-spacing: .12em; }
+h1, h2, h3, p { margin-top: 0; }
+h1 { max-width: 760px; margin-bottom: .7rem; font-size: clamp(3rem, 8vw, 6.2rem); letter-spacing: -.065em; line-height: .89; }
+h2 { margin-bottom: .35rem; font-size: 1.7rem; letter-spacing: -.035em; }
+.intro { max-width: 610px; margin-bottom: 0; color: var(--muted); font-size: 1.15rem; line-height: 1.5; }
+.button { cursor: pointer; border: 1px solid var(--green); padding: .68rem 1rem; color: var(--green); background: transparent; font-family: "Courier New", monospace; font-size: .76rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; transition: transform .15s ease, background .15s ease; }
+.button:hover { transform: translateY(-2px); }
+.button-primary { color: var(--ink); background: var(--lime); }
+.button-quiet { border-color: var(--line); }
+.button-danger { border-color: #aeb8b1; color: #66716a; background: #edf0ea; }
+.button-danger:not(:disabled):hover { border-color: #b74825; color: #a53d1e; background: #fff4ef; }
+.button-open { width: 100%; margin-top: .75rem; border-color: #8ca098; background: #edf0ea; font-size: .67rem; }
+.button-upload { width: 100%; margin-top: .75rem; border-color: var(--green); background: #e5eadf; font-size: .67rem; }
+.button:disabled { cursor: not-allowed; opacity: .48; transform: none; }
+.external-links { display: flex; flex-wrap: wrap; gap: .8rem; padding: .8rem 0 1.25rem; border-bottom: 1px solid var(--line); }
+.link-button { display: inline-flex; align-items: center; justify-content: center; padding: .68rem 1rem; border: 1px solid var(--green); color: var(--ink); background: var(--lime); text-decoration: none; font-family: "Courier New", monospace; font-size: .76rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; transition: transform .15s ease, background .15s ease; }
+.link-button:hover { transform: translateY(-2px); background: #d0e96f; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; padding: 1.25rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+select, input, textarea { border: 1px solid var(--line); border-radius: 0; padding: .6rem .65rem; color: var(--ink); background: var(--card); }
+#season-select { min-width: 130px; font-weight: 700; }
+#import-input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.import-label { display: inline-block; }
+.season-overview { padding: 2.5rem 0 1.5rem; }
+.path, .archive-panel p { margin-bottom: 0; color: var(--muted); font-family: "Courier New", monospace; font-size: .82rem; }
+.scan-result { min-height: 1.1rem; margin: .45rem 0 0; color: var(--green); font-family: "Courier New", monospace; font-size: .72rem; }
+.season-actions { display: flex; align-items: end; gap: 1.3rem; }
+.progress-block { min-width: min(310px, 100%); text-align: right; color: var(--muted); font-family: "Courier New", monospace; font-size: .75rem; }
+.progress-track { height: 9px; margin-top: .6rem; overflow: hidden; background: #dce2d7; }
+#progress-bar { width: 0; height: 100%; background: var(--green); transition: width .25s ease; }
+.tour-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 1rem; }
+.tour-card { min-height: 350px; padding: 1.2rem; border: 1px solid var(--line); background: var(--card); box-shadow: var(--shadow); }
+.tour-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
+.tour-number { margin-bottom: 0; color: var(--orange); font-family: "Courier New", monospace; font-size: .75rem; font-weight: 700; }
+.status-pill { padding: .28rem .45rem; background: #edf0ea; color: var(--muted); font-family: "Courier New", monospace; font-size: .64rem; text-transform: uppercase; }
+.status-pill[data-status="validated"] { background: var(--lime); color: var(--ink); }
+.status-pill[data-status="imported"] { background: #c8e6dd; color: var(--green); }
+.status-pill[data-status="ready"] { background: #ffe2ba; color: #835421; }
+h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
+.tour-card label, #season-dialog label { display: block; margin-top: .75rem; color: var(--muted); font-family: "Courier New", monospace; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.tour-card input, .tour-card select, #season-dialog input { width: 100%; margin-top: .28rem; font-family: Georgia, "Times New Roman", serif; font-size: .84rem; }
+.source-summary { min-height: 1.2rem; margin: .65rem 0 0; color: var(--green); font-family: "Courier New", monospace; font-size: .67rem; line-height: 1.35; }
+.notes-panel, .setup-panel, .archive-panel, .standings-panel { margin-top: 2rem; padding: 1.4rem; border-top: 3px solid var(--green); background: #e5eadf; }
+.standings-panel { display: grid; grid-template-columns: minmax(250px, 1fr) auto; gap: 2rem; align-items: start; }
+.standings-panel > div { grid-column: 1; }
+.standings-panel > button { grid-column: 2; grid-row: 1 / 3; }
+.standings-panel > div > p { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
+.standings-container { grid-column: 1 / -1; margin-top: 1rem; }
+.standings-status { grid-column: 1 / -1; min-height: 1rem; margin: .5rem 0 0; color: var(--muted); font-family: "Courier New", monospace; font-size: .75rem; }
+.cat-heading { margin: .4rem 0 .15rem; font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: var(--line); display: inline-block; padding: .15rem .5rem; scroll-margin-top: 8.5rem; }
+.series-group { margin-bottom: .6rem; scroll-margin-top: 8.5rem; }
+.series-title { margin: .2rem 0 .12rem; color: var(--green); font-family: "Courier New", monospace; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.player-row { display: grid; gap: .2rem; padding: .12rem 0; border-bottom: 1px solid #d0d6cd; font-size: .75rem; align-items: center; }
+.player-row:last-of-type { border-bottom: none; }
+.column-header { display: grid; gap: .2rem; padding: .35rem 0; background: var(--green); color: white; margin-bottom: .4rem; font-size: .7rem; font-weight: 700; border-radius: 2px; }
+.header-cell { text-align: right; padding: 0 .3rem; letter-spacing: .03em; }
+.header-cell:nth-child(1) { text-align: center; }
+.header-cell:nth-child(2) { text-align: left; }
+.rank { font-weight: 700; text-align: center; color: var(--green); font-size: .72rem; white-space: nowrap; }
+.rank-gold { background: #ffd700; color: #333; padding: .2rem .3rem; border-radius: 3px; font-size: .8rem; white-space: nowrap; }
+.rank-silver { background: #c0c0c0; color: #333; padding: .2rem .3rem; border-radius: 3px; font-size: .8rem; white-space: nowrap; }
+.rank-bronze { background: #cd7f32; color: #fff; padding: .2rem .3rem; border-radius: 3px; font-size: .8rem; white-space: nowrap; }
+.name { font-weight: 600; font-size: .78rem; }
+.score-cell { text-align: right; font-family: "Courier New", monospace; }
+.score-label { display: block; font-size: .58rem; color: var(--muted); margin-bottom: .08rem; font-weight: 500; }
+.score-value { font-size: .78rem; font-weight: 600; }
+.score-type-header { margin: .3rem 0 .15rem; font-weight: 700; color: var(--green); font-size: .78rem; letter-spacing: .03em; border-left: 3px solid var(--green); padding-left: .4rem; scroll-margin-top: 8.5rem; }
+.open-file-btn { background: none; border: 1px solid var(--green); color: var(--green); padding: .1rem .35rem; border-radius: 3px; cursor: pointer; font-size: .72rem; line-height: 1; }
+.open-file-btn:hover { background: var(--lime); }
+.back-to-top { display: inline-block; margin: .15rem 0 .3rem; font-family: "Courier New", monospace; font-size: .62rem; color: var(--muted); text-decoration: none; letter-spacing: .03em; border-bottom: 1px dashed var(--line); }
+.back-to-top:hover { color: var(--green); border-color: var(--green); }
+.standings-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1.2rem; border-bottom: 2px solid var(--line); padding-bottom: .6rem; }
+.standings-tab { cursor: pointer; border: 1px solid var(--line); padding: .4rem .8rem; color: var(--muted); background: var(--card); font-family: "Courier New", monospace; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; transition: background .12s; }
+.standings-tab:hover { background: #e5eadf; color: var(--ink); }
+.standings-tab.active { border-color: var(--green); color: var(--ink); background: var(--lime); }
+@media (max-width: 650px) { .standings-panel { grid-template-columns: 1fr; } .standings-panel > button { grid-column: 1; grid-row: auto; } .player-row { grid-template-columns: 1fr !important; } .score-label { display: block; } .standings-tabs { gap: .25rem; } .standings-tab { font-size: .65rem; padding: .3rem .5rem; } }
+.notes-panel { display: grid; grid-template-columns: minmax(170px, .6fr) 1.4fr; gap: 2rem; }
+.notes-panel textarea { width: 100%; min-height: 120px; resize: vertical; line-height: 1.45; }
+.setup-panel { display: grid; grid-template-columns: minmax(250px, 1fr) 1.15fr; gap: 2rem; }
+.setup-panel p { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
+.setup-panel a { color: var(--green); font-weight: 700; }
+.setup-panel ol { margin: 0; padding-left: 1.25rem; line-height: 1.7; }
+.setup-panel code { padding: .12rem .25rem; background: #f7f8f0; font-family: "Courier New", monospace; font-size: .82em; }
+.archive-panel { align-items: center; }
+dialog { width: min(460px, calc(100% - 2rem)); border: 0; padding: 0; box-shadow: 0 20px 60px rgba(0, 0, 0, .22); }
+dialog::backdrop { background: rgba(23, 47, 35, .55); }
+#season-form { padding: 2rem; background: var(--card); }
+#season-form input { font-size: 1rem; }
+.form-hint { margin: 1rem 0 0; color: var(--muted); font-size: .82rem; line-height: 1.45; }
+.dialog-actions { display: flex; justify-content: end; gap: .7rem; margin-top: 1.5rem; }
+@media (max-width: 650px) { .shell { width: min(100% - 1.5rem, 1180px); padding-top: 2.2rem; } .hero-row, .season-overview, .archive-panel, .season-actions { align-items: start; flex-direction: column; gap: 1.25rem; } .progress-block { text-align: left; } .notes-panel, .setup-panel { grid-template-columns: 1fr; gap: .5rem; } }
+.standings-tab-pdf { margin-left: auto; border-color: var(--green); color: var(--green); background: var(--card); }
+.standings-tab-pdf:hover { background: var(--lime); color: var(--ink); }
+.standings-section-nav { display: flex; flex-direction: column; gap: .7rem; padding: .8rem 0 1rem; border-bottom: 1px solid var(--line); margin-bottom: .8rem; position: sticky; top: 0; background: var(--paper); z-index: 10; }
+.section-nav-cat { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .35rem; }
+.section-nav-cat-label { flex: 0 0 auto; align-self: flex-start; font-family: "Courier New", monospace; font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: #e5eadf; border: 1px solid var(--line); padding: .18rem .5rem; margin-top: .05rem; white-space: nowrap; }
+.section-nav-tour-label { flex: 0 0 auto; font-family: "Courier New", monospace; font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: #e5eadf; border: 1px solid var(--line); padding: .18rem .5rem; white-space: nowrap; }
+.section-nav-groups { display: flex; flex-direction: column; gap: .3rem; flex: 1; }
+.section-nav-group { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .35rem; }
+.section-nav-link { font-family: "Courier New", monospace; text-decoration: none; transition: border-color .12s, background .12s, color .12s; }
+.section-nav-header { font-size: .74rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--card); background: var(--green); padding: .22rem .62rem; border: 1px solid var(--green); white-space: nowrap; box-shadow: 0 1px 0 rgba(0,0,0,.1); cursor: default; }
+.section-nav-header.section-nav-net { background: #1c6b57; border-color: #1c6b57; color: #f8fff9; }
+.section-nav-header.section-nav-brut { background: #5b3a1b; border-color: #5b3a1b; color: #fff8f0; }
+.section-nav-series { font-size: .66rem; font-weight: 400; letter-spacing: .01em; color: var(--green); background: transparent; padding: .15rem .45rem; border: 1px solid var(--line); }
+.section-nav-series:hover { border-color: var(--green); background: var(--lime); color: var(--ink); }
+.tour-subtabs { display: flex; gap: .35rem; margin: .6rem 0 .8rem; }
+.tour-subtab { cursor: pointer; border: 1px solid var(--line); padding: .3rem .7rem; color: var(--muted); background: var(--card); font-family: "Courier New", monospace; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; transition: background .12s; }
+.tour-subtab:hover { background: #e5eadf; color: var(--ink); }
+.tour-subtab.active { border-color: var(--green); color: var(--ink); background: #e5eadf; }
+
+/* ── Print / PDF export ─────────────────────────────────────────────────── */
+#lgs-print-area { display: none; }
+
+@media print {
+  /* Hide everything on the page */
+  body > * { display: none !important; }
+  /* Show only our print area */
+  #lgs-print-area {
+    display: block !important;
+    font-family: Georgia, "Times New Roman", serif;
+    color: #1e2925;
+    background: #fff;
+    padding: 0;
+    margin: 0;
+  }
+
+  .print-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.2rem;
+    margin-bottom: .6rem;
+  }
+  .print-logo {
+    font-family: Georgia, serif;
+    font-size: 2.8rem;
+    font-weight: 700;
+    letter-spacing: -.06em;
+    line-height: 1;
+    color: #174f42;
+    padding-top: .1rem;
+  }
+  .print-eyebrow {
+    font-family: "Courier New", monospace;
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #174f42;
+    margin-bottom: .25rem;
+  }
+  .print-tab-name {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    line-height: 1.1;
+    margin-bottom: .2rem;
+  }
+  .print-source {
+    font-family: "Courier New", monospace;
+    font-size: .62rem;
+    color: #69736b;
+  }
+  .print-divider {
+    border: none;
+    border-top: 2px solid #174f42;
+    margin: .5rem 0 1rem;
+  }
+
+  /* Tab system — flatten: just show all content */
+  .standings-tab-panel { display: block !important; }
+  .standings-tabs { display: none !important; }
+  /* Sub-tabs — hide bar, show active sub-panel only (already the case via hidden attr) */
+  .tour-subtabs { display: none !important; }
+  .tour-subtab-panel { display: block !important; }
+
+  /* Series groups */
+  .series-group { margin-bottom: .8rem; page-break-inside: avoid; }
+  .series-title {
+    font-family: "Courier New", monospace;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #174f42;
+    margin: .15rem 0 .1rem;
+  }
+  .score-type-header {
+    font-weight: 700;
+    font-size: .72rem;
+    color: #174f42;
+    margin: .3rem 0 .1rem;
+    border-left: 2px solid #174f42;
+    padding-left: .3rem;
+  }
+
+  /* Player rows */
+  .player-row {
+    display: grid !important;
+    gap: .2rem;
+    padding: .08rem 0;
+    border-bottom: 1px solid #e8ece5;
+    font-size: .68rem;
+    align-items: center;
+  }
+  .rank { font-weight: 700; color: #174f42; font-size: .65rem; }
+  .name { font-weight: 600; font-size: .72rem; }
+  .score-cell { text-align: right; font-family: "Courier New", monospace; }
+  .score-label { font-size: .52rem; color: #69736b; display: block; }
+  .score-value { font-size: .7rem; font-weight: 600; }
+  .back-to-top { display: none; }
+  .cat-heading { font-size: .72rem; margin: .3rem 0 .1rem; }
+
+  h3 { font-size: .9rem; margin-top: .8rem; margin-bottom: .2rem; page-break-after: avoid; }
+
+  /* Page settings */
+  @page { size: A4 portrait; margin: 1.4cm 1.6cm; }
+}

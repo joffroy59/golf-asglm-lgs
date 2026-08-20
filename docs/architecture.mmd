@@ -1,0 +1,63 @@
+graph TD
+    Start([User Opens App]) --> LoadState[Load Season State<br/>from localStorage]
+    LoadState --> SelectSeason{Season<br/>Selected?}
+    
+    SelectSeason -->|New Season| CreateSeason["Create Season<br/>(Year + Directory)"]
+    SelectSeason -->|Existing| ActiveSeason["Load Active<br/>Season"]
+    
+    CreateSeason --> LinkFolder["Link LGS Folder<br/>via File Picker"]
+    ActiveSeason --> ShowUI["Display Season<br/>Overview"]
+    LinkFolder --> ShowUI
+    
+    ShowUI --> UserAction{User Action?}
+    
+    UserAction -->|Click Refresh| FindFile["Find Latest<br/>Calc File"]
+    UserAction -->|Click Tab| ClickTab["Show Tab<br/>Panel"]
+    UserAction -->|Link Folder| LinkFolder
+    UserAction -->|Export/Import| ManageJSON["Export/Import<br/>Season JSON"]
+    
+    FindFile --> AutoLink{Folder<br/>Linked?}
+    AutoLink -->|No| AutoLink2["Attempt Auto-Link"]
+    AutoLink2 --> AutoLinkResult{Success?}
+    AutoLinkResult -->|No| Error1["Show Error:<br/>Link Folder"]
+    AutoLinkResult -->|Yes| FindFile
+    AutoLink -->|Yes| ReadExcel["Read Excel File<br/>with XLSX.js"]
+    
+    ReadExcel --> DetectFinale{Finale<br/>File?}
+    DetectFinale -->|Yes| CheckPlayed["Check if Finale<br/>Scores Exist"]
+    DetectFinale -->|No| ParseData["Parse Tour Scores<br/>from Columns"]
+    CheckPlayed --> ParseData
+    
+    ParseData --> ExtractTourDates["Extract Tour Dates<br/>from RMS Files"]
+    ExtractTourDates --> BuildStandings["Build Standings<br/>by Category/Series"]
+    
+    BuildStandings --> Render["Render Standings<br/>Component"]
+    
+    Render --> RenderTabs["Create Tabs:<br/>Top10, T1-T6,<br/>Finale, Tout"]
+    RenderTabs --> RenderSections["Create Section Nav<br/>with Links"]
+    RenderSections --> RenderContent["Fill Tab Panels<br/>with Player Data"]
+    
+    RenderContent --> Interact{User<br/>Interaction?}
+    Interact -->|Click Tab| SwitchTab["Switch Tab Panel"]
+    Interact -->|Click Section Link| ScrollToSection["Scroll to Section<br/>with scroll-margin"]
+    Interact -->|Click Series| NavigateSeries["Navigate to<br/>Series Group"]
+    Interact -->|Export PDF| PrintStandings["Print Active Tab<br/>to PDF"]
+    
+    SwitchTab --> UpdateNav["Update Section Nav<br/>for Active Tab"]
+    ScrollToSection --> UpdateNav
+    NavigateSeries --> UpdateNav
+    UpdateNav --> Interact
+    PrintStandings --> Interact
+    
+    ManageJSON --> SaveState["Save to<br/>localStorage"]
+    SaveState --> ShowUI
+    
+    ClickTab --> RenderContent
+    Error1 --> ShowUI
+    
+    style Start fill:#d5ee7b
+    style FindFile fill:#e96b37
+    style ReadExcel fill:#174f42,color:#fff
+    style Render fill:#1c6b57,color:#fff
+    style Interact fill:#5b3a1b,color:#fff
+    style Error1 fill:#f08080
