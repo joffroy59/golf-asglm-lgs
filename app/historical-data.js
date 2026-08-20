@@ -10,8 +10,7 @@ window.LGS_HISTORICAL_SEASON_DATA = {
       4: ["export_DAME_Brut_12.xlsx", "export_DAME_Net_12.xlsx", "export_HOMME_Brut_1.xlsx", "export_HOMME_Net_1.xlsx"],
       5: ["export_DAME_Brut_12.xlsx", "export_DAME_Net_12.xlsx", "export_HOMME_Brut_1.xlsx", "export_HOMME_Net_1.xlsx"],
       6: ["export_DAME_Brut_12.xlsx", "export_DAME_Net_12.xlsx", "export_HOMME_Brut_1.xlsx", "export_HOMME_Net_1.xlsx"],
-      7: ["export_DAME_Brut_12.xlsx", "export_DAME_Net_12.xlsx", "export_HOMME_Brut_1.xlsx", "export_HOMME_Net_1.xlsx"],
-      8: ["export_DAME_Brut_12.xlsx", "export_DAME_Net_12.xlsx", "export_HOMME_Brut_1.xlsx", "export_HOMME_Net_1.xlsx"]
+      7: ["export_DAME_Brut_12.xlsx", "export_DAME_Net_12.xlsx", "export_HOMME_Brut_1.xlsx", "export_HOMME_Net_1.xlsx"]
     }
   },
   2024: {
@@ -24,8 +23,7 @@ window.LGS_HISTORICAL_SEASON_DATA = {
       4: ["2d. Extraction XLS globale.xls"],
       5: ["2d. Extraction XLS globale.xls"],
       6: ["2d. Extraction XLS globale - Copie.xls", "2d. Extraction XLS globale.xls"],
-      7: [],
-      8: ["2d. Extraction XLS globale - Copie (2).xls", "2d. Extraction XLS globale - Copie (3).xls", "2d. Extraction XLS globale - Copie.xls", "2d. Extraction XLS globale.xls"]
+      7: ["2d. Extraction XLS globale - Copie (2).xls", "2d. Extraction XLS globale - Copie (3).xls", "2d. Extraction XLS globale - Copie.xls", "2d. Extraction XLS globale.xls"]
     }
   },
   2025: {
@@ -38,8 +36,7 @@ window.LGS_HISTORICAL_SEASON_DATA = {
       4: ["2d. Extraction XLS globale.xls"],
       5: ["2d. Extraction XLS globale.xls"],
       6: ["2d. Extraction XLS globale.xls"],
-      7: [],
-      8: ["2d. Extraction XLS globale.xls"]
+      7: ["2d. Extraction XLS globale.xls"]
     }
   }
 };
