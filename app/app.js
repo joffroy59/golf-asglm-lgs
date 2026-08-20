@@ -766,6 +766,13 @@ function printStandingsPanel(panel, tabLabel, fileName) {
   const clone = panel.cloneNode(true);
   // Remove the "open file" buttons from the clone — they don't work in print
   clone.querySelectorAll(".open-file-btn").forEach(b => b.remove());
+  clone.querySelectorAll(".standings-tab").forEach(b => b.remove());
+  clone.querySelectorAll(".tour-subtab").forEach(b => b.remove());
+  clone.querySelectorAll(".tour-subtabs").forEach(b => b.remove());
+  // Unhide all hidden elements so they appear in print (especially hidden sub-panels)
+  clone.querySelectorAll("[hidden]").forEach(el => {
+    el.removeAttribute("hidden");
+  });
   printArea.appendChild(clone);
 
   window.print();
@@ -802,6 +809,13 @@ function shareStandingsPanelToWhatsapp(panel, tabLabel, fileName) {
   const clone = panel.cloneNode(true);
   clone.querySelectorAll(".open-file-btn").forEach(b => b.remove());
   clone.querySelectorAll(".standings-tab").forEach(b => b.remove());
+  clone.querySelectorAll(".tour-subtab").forEach(b => b.remove());
+  clone.querySelectorAll(".tour-subtabs").forEach(b => b.remove());
+  
+  // Unhide all hidden elements so they appear in PDF (especially hidden sub-panels)
+  clone.querySelectorAll("[hidden]").forEach(el => {
+    el.removeAttribute("hidden");
+  });
 
   // Create container for PDF content
   const pdfContent = document.createElement("div");
