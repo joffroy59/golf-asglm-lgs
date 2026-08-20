@@ -5,7 +5,7 @@ const SOURCE_MODES = {
   local: "local",
   dropbox: "dropbox"
 };
-const DROPBOX_TOKEN_STORAGE_KEY = "lgs-dropbox-access-token-v1";
+const DROPBOX_TOKEN_SESSION_KEY = "lgs-dropbox-access-token-v1";
 const STATUS_LABELS = {
   planned: "A preparer",
   ready: "Export pret",
@@ -132,7 +132,12 @@ function addHistoricalSeasons(savedState) {
 let state = loadState();
 const linkedFileHandles = new Map();
 const linkedDirectoryHandles = new Map();
-let dropboxAccessToken = localStorage.getItem(DROPBOX_TOKEN_STORAGE_KEY) || "";
+let dropboxAccessToken = "";
+try {
+  dropboxAccessToken = sessionStorage.getItem(DROPBOX_TOKEN_SESSION_KEY) || "";
+} catch (_) {
+  dropboxAccessToken = "";
+}
 
 
 function saveState() {
@@ -145,8 +150,12 @@ function hasDropboxToken() {
 
 function setDropboxToken(token) {
   dropboxAccessToken = String(token || "").trim();
-  if (dropboxAccessToken) localStorage.setItem(DROPBOX_TOKEN_STORAGE_KEY, dropboxAccessToken);
-  else localStorage.removeItem(DROPBOX_TOKEN_STORAGE_KEY);
+  try {
+    if (dropboxAccessToken) sessionStorage.setItem(DROPBOX_TOKEN_SESSION_KEY, dropboxAccessToken);
+    else sessionStorage.removeItem(DROPBOX_TOKEN_SESSION_KEY);
+  } catch (_) {
+    // Keep token in-memory only if sessionStorage is unavailable.
+  }
 }
 
 function ensureDropboxPath(path, seasonYear) {
@@ -508,7 +517,9 @@ function setSourceMode(mode) {
 }
 
 async function connectAndScanDropboxSeason(season) {
-  const existingTokenHint = hasDropboxToken() ? "Token deja enregistre. Laissez vide pour le conserver." : "";
+  const existingTokenHint = hasDropboxToken()
+    ? "Token deja charge pour cette session navigateur. Laissez vide pour le conserver."
+    : "Le token est conserve uniquement pour la session en cours (jamais exporte).";
   const tokenInput = window.prompt(`Access token Dropbox (Scoped App)\n${existingTokenHint}`, "");
   if (tokenInput === null) return false;
   if (tokenInput.trim()) setDropboxToken(tokenInput.trim());
