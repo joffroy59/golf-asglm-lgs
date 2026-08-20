@@ -1034,7 +1034,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     return btn;
   }
 
-  function makePlayerRow(player, rank, cols) {
+  function makePlayerRow(player, rank, cols, bestScores = {}) {
     const row = document.createElement("div");
     row.className = "player-row";
     row.style.gridTemplateColumns = `2rem 1.5fr ${cols.map(() => "1fr").join(" ")}`;
@@ -1042,20 +1042,21 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     const rankCell = document.createElement("div");
     rankCell.className = "rank";
     
-    // Add medal emoji for top 3 and colorful styling
+    // Add medal emoji for top 3 with rank number
     let rankDisplay = String(rank);
+    let medal = "";
     if (rank === 1) {
-      rankDisplay = "🥇";
+      medal = "🥇";
       rankCell.classList.add("rank-gold");
     } else if (rank === 2) {
-      rankDisplay = "🥈";
+      medal = "🥈";
       rankCell.classList.add("rank-silver");
     } else if (rank === 3) {
-      rankDisplay = "🥉";
+      medal = "🥉";
       rankCell.classList.add("rank-bronze");
     }
     
-    rankCell.textContent = rankDisplay;
+    rankCell.textContent = rankDisplay + (medal ? " " + medal : "");
     row.appendChild(rankCell);
 
     const nameCell = document.createElement("div");
@@ -1063,13 +1064,19 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     nameCell.textContent = player.name;
     row.appendChild(nameCell);
 
-    for (const col of cols) {
+    for (let colIndex = 0; colIndex < cols.length; colIndex++) {
+      const col = cols[colIndex];
       const cell = document.createElement("div");
       cell.className = "score-cell";
       if (col.bold) cell.style.fontWeight = "700";
       const val = col.value(player);
+      
+      // Check if this score is the best in its column
+      const isBest = bestScores[colIndex] !== undefined && val === bestScores[colIndex];
+      const star = isBest ? "⭐ " : "";
+      
       // Only show the value, not the label (label goes in header row)
-      cell.innerHTML = `<div class="score-value">${val !== undefined && val !== "" ? val : "—"}</div>`;
+      cell.innerHTML = `<div class="score-value">${star}${val !== undefined && val !== "" ? val : "—"}</div>`;
       row.appendChild(cell);
     }
     return row;
@@ -1127,8 +1134,21 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     // Add column header row
     group.appendChild(makeColumnHeader(cols));
 
+    // Calculate best score for each column
+    const bestScores = {};
+    cols.forEach((col, colIndex) => {
+      const scores = players.map(p => {
+        const val = col.value(p);
+        return typeof val === 'number' ? val : null;
+      }).filter(v => v !== null);
+      if (scores.length > 0) {
+        // For golf, lower is better (unless it's a ranking/position column)
+        bestScores[colIndex] = Math.min(...scores);
+      }
+    });
+
     players.forEach(player => {
-      group.appendChild(makePlayerRow(player, trueRank(player, players), cols));
+      group.appendChild(makePlayerRow(player, trueRank(player, players), cols, bestScores));
     });
 
     // Back-to-top link
