@@ -1249,7 +1249,10 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       }
 
       panels[tourId].appendChild(catHeading());
-      const tourCols = [{ label: tourLabel, value: p => p.total, bold: true }];
+      const tourCols = [
+        { label: tourLabel, value: p => p.total, bold: true },
+        { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
+      ];
 
       const getTourPlayers = (arr, t, limit) => {
         const raw = arr
