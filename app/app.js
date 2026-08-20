@@ -796,15 +796,17 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
   );
   console.log("toursWithData:", toursWithData);
   // Helper: build display label with date suffix when available
-  function withDate(id, baseLabel) {
-    return baseLabel;
+  function withDate(id, baseLabel, includeDate = false) {
+    if (!includeDate) return baseLabel;
+    const d = tourDateMap[id];
+    return d ? `${baseLabel} · ${d}` : baseLabel;
   }
 
   const tabs = [
     { id: "best", label: "Top 10" },
     // Always show all T1–T6 tabs + Finale (even without data yet)
-    ...availableTours.map(t => ({ id: t, label: withDate(t, t) })),
-    { id: "finale", label: withDate("finale", "Finale") },
+    ...availableTours.map(t => ({ id: t, label: withDate(t, t, true) })),
+    { id: "finale", label: withDate("finale", "Finale", true) },
     { id: "all",  label: "Tout" }
   ];
 
