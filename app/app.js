@@ -797,8 +797,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
   console.log("toursWithData:", toursWithData);
   // Helper: build display label with date suffix when available
   function withDate(id, baseLabel) {
-    const d = tourDateMap[id];
-    return d ? `${baseLabel} · ${d}` : baseLabel;
+    return baseLabel;
   }
 
   const tabs = [
@@ -916,6 +915,8 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         const sectionLink = document.createElement("a");
         sectionLink.href = "#" + h.id;
         sectionLink.className = "section-nav-link section-nav-header";
+        if (/NET/i.test(h.textContent)) sectionLink.classList.add("section-nav-net");
+        if (/BRUT/i.test(h.textContent)) sectionLink.classList.add("section-nav-brut");
         sectionLink.textContent = h.textContent;
         sectionLink.addEventListener("click", e => {
           e.preventDefault();
@@ -1042,6 +1043,13 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     return row;
   }
 
+  function compactSeriesLabel(seriesName) {
+    const raw = String(seriesName || "").trim();
+    const numberMatch = raw.match(/(\d+)/);
+    if (numberMatch) return `Serie${numberMatch[1]}`;
+    return raw;
+  }
+
   function makeSeriesGroup(seriesName, players, cols, sectionLabel) {
     const group = document.createElement("div");
     group.className = "series-group";
@@ -1054,7 +1062,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     titleRow.style.cssText = "display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem";
     const title = document.createElement("div");
     title.className = "series-title";
-    title.textContent = seriesName;
+    title.textContent = compactSeriesLabel(seriesName);
     titleRow.appendChild(title);
     titleRow.appendChild(makeOpenFileBtn());
     group.appendChild(titleRow);
