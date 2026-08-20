@@ -5,6 +5,7 @@ const SOURCE_MODES = {
   local: "local",
   dropbox: "dropbox"
 };
+const DROPBOX_TOKEN_STORAGE_KEY = "lgs-dropbox-access-token-v1";
 const STATUS_LABELS = {
   planned: "A preparer",
   ready: "Export pret",
@@ -67,6 +68,9 @@ function ensureSeasonDefaults(season) {
     season.dropboxPath = `/ASGLM ${season.year}/LGS`;
   }
   if (typeof season.sourceMessage !== "string") season.sourceMessage = "";
+  if (season.sourceMessage === "Mode Dropbox actif. La connexion Dropbox API sera ajoutee dans une prochaine mise a jour.") {
+    season.sourceMessage = "";
+  }
 }
 
 function loadState() {
@@ -128,10 +132,104 @@ function addHistoricalSeasons(savedState) {
 let state = loadState();
 const linkedFileHandles = new Map();
 const linkedDirectoryHandles = new Map();
+let dropboxAccessToken = localStorage.getItem(DROPBOX_TOKEN_STORAGE_KEY) || "";
 
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function hasDropboxToken() {
+  return Boolean(dropboxAccessToken);
+}
+
+function setDropboxToken(token) {
+  dropboxAccessToken = String(token || "").trim();
+  if (dropboxAccessToken) localStorage.setItem(DROPBOX_TOKEN_STORAGE_KEY, dropboxAccessToken);
+  else localStorage.removeItem(DROPBOX_TOKEN_STORAGE_KEY);
+}
+
+function ensureDropboxPath(path, seasonYear) {
+  const trimmed = String(path || "").trim().replace(/\\/g, "/");
+  const defaultPath = `/ASGLM ${seasonYear}/LGS`;
+  if (!trimmed) return defaultPath;
+  const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return withLeadingSlash.replace(/\/+$/, "");
+}
+
+function tourFolderName(tour) {
+  return tour.name === "Finale" ? "Finale" : `T${tour.number}`;
+}
+
+async function dropboxApiJson(url, payload) {
+  if (!hasDropboxToken()) throw new Error("DROPBOX_TOKEN_MISSING");
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${dropboxAccessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`DROPBOX_API_ERROR ${response.status}: ${details}`);
+  }
+  return response.json();
+}
+
+async function dropboxListFolder(path) {
+  try {
+    const result = await dropboxApiJson("https://api.dropboxapi.com/2/files/list_folder", { path });
+    return result.entries || [];
+  } catch (error) {
+    if (/path\/not_found/i.test(String(error.message))) return [];
+    throw error;
+  }
+}
+
+async function dropboxDownload(path) {
+  if (!hasDropboxToken()) throw new Error("DROPBOX_TOKEN_MISSING");
+  const response = await fetch("https://content.dropboxapi.com/2/files/download", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${dropboxAccessToken}`,
+      "Dropbox-API-Arg": JSON.stringify({ path })
+    }
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`DROPBOX_DOWNLOAD_ERROR ${response.status}: ${details}`);
+  }
+  const fileBlob = await response.blob();
+  return {
+    name: response.headers.get("Dropbox-API-Result") ? JSON.parse(response.headers.get("Dropbox-API-Result")).name : path.split("/").pop(),
+    arrayBuffer: () => fileBlob.arrayBuffer()
+  };
+}
+
+async function dropboxUpload(path, file) {
+  if (!hasDropboxToken()) throw new Error("DROPBOX_TOKEN_MISSING");
+  const response = await fetch("https://content.dropboxapi.com/2/files/upload", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${dropboxAccessToken}`,
+      "Content-Type": "application/octet-stream",
+      "Dropbox-API-Arg": JSON.stringify({
+        path,
+        mode: "add",
+        autorename: true,
+        mute: false,
+        strict_conflict: false
+      })
+    },
+    body: file
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`DROPBOX_UPLOAD_ERROR ${response.status}: ${details}`);
+  }
+  return response.json();
 }
 
 function activeSeason() {
@@ -155,10 +253,12 @@ function render() {
   elements.sourceLocalButton.setAttribute("aria-pressed", String(!isDropboxMode));
   elements.sourceDropboxButton.classList.toggle("active", isDropboxMode);
   elements.sourceDropboxButton.setAttribute("aria-pressed", String(isDropboxMode));
-  elements.linkFolderButton.disabled = isDropboxMode;
-  elements.linkFolderButton.textContent = isDropboxMode ? "Dropbox (bientot)" : "Lier le dossier LGS";
+  elements.linkFolderButton.disabled = false;
+  elements.linkFolderButton.textContent = isDropboxMode
+    ? (hasDropboxToken() ? "Analyser Dropbox" : "Connecter Dropbox")
+    : "Lier le dossier LGS";
   elements.linkFolderButton.title = isDropboxMode
-    ? "Le mode Dropbox est affiche pour preparation. La connexion API sera ajoutee dans une prochaine etape."
+    ? "Connecter puis analyser le dossier Dropbox de cette saison."
     : "Lier le dossier LGS local pour analyser les fichiers.";
   elements.scanResult.textContent = season.sourceMessage
     || season.catalogMessage
@@ -195,13 +295,19 @@ function renderTours(season) {
     note.value = tour.note;
     sourceSummary.textContent = sourceLabel(tour.sourceFiles || []);
     const isDropboxMode = season.sourceMode === SOURCE_MODES.dropbox;
-    openButton.disabled = isDropboxMode || !canOpenTourFile(season, tour);
-    openButton.title = isDropboxMode
-      ? "Le mode Dropbox est en preparation. Revenez en mode local pour ouvrir un fichier."
-      : (openButton.disabled ? "Liez le dossier LGS pour ouvrir ce fichier." : `Ouvrir ${tour.file}`);
-    uploadButton.disabled = isDropboxMode || !window.showOpenFilePicker || !window.showDirectoryPicker;
+    openButton.disabled = !canOpenTourFile(season, tour);
+    openButton.title = openButton.disabled
+      ? (isDropboxMode
+        ? "Connectez Dropbox et relancez l'analyse pour ouvrir ce fichier."
+        : "Liez le dossier LGS pour ouvrir ce fichier.")
+      : `Ouvrir ${tour.file}`;
+    uploadButton.disabled = isDropboxMode
+      ? !hasDropboxToken() || !window.showOpenFilePicker
+      : !window.showOpenFilePicker || !window.showDirectoryPicker;
     uploadButton.title = isDropboxMode
-      ? "Le mode Dropbox est en preparation. Revenez en mode local pour ajouter un fichier."
+      ? (uploadButton.disabled
+        ? "Connectez Dropbox pour ajouter un fichier."
+        : `Ajouter un fichier dans ${tour.name} sur Dropbox`)
       : (uploadButton.disabled
         ? "Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier."
         : `Ajouter un fichier dans ${tour.name}`);
@@ -222,6 +328,9 @@ function fileHandleKey(seasonId, tourNumber) {
 }
 
 function canOpenTourFile(season, tour) {
+  if (season.sourceMode === SOURCE_MODES.dropbox) {
+    return hasDropboxToken() && Boolean(tour.file);
+  }
   return linkedFileHandles.has(fileHandleKey(season.id, tour.number)) || Boolean(knownRmsHref(season, tour));
 }
 
@@ -240,18 +349,29 @@ async function openRmsFile(seasonId, tourNumber) {
   const tour = season?.tours.find((item) => item.number === tourNumber);
   if (!tour) return;
   try {
-    const url = handle
-      ? URL.createObjectURL(await handle.getFile())
-      : knownRmsHref(season, tour);
+    let url = "";
+    if (season.sourceMode === SOURCE_MODES.dropbox) {
+      if (!hasDropboxToken()) {
+        alert("Connectez Dropbox puis reessayez.");
+        return;
+      }
+      const dropboxFilePath = `${ensureDropboxPath(season.dropboxPath, season.year)}/${tourFolderName(tour)}/${tour.file}`;
+      const tempLink = await dropboxApiJson("https://api.dropboxapi.com/2/files/get_temporary_link", { path: dropboxFilePath });
+      url = tempLink?.link || "";
+    } else {
+      url = handle
+        ? URL.createObjectURL(await handle.getFile())
+        : knownRmsHref(season, tour);
+    }
     if (!url) return;
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.target = "_blank";
     anchor.rel = "noopener";
     anchor.click();
-    if (handle) setTimeout(() => URL.revokeObjectURL(url), 60000);
+    if (handle && season.sourceMode === SOURCE_MODES.local) setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (_) {
-    alert("Le fichier RMS ne peut plus etre ouvert. Reliez le dossier LGS puis reessayez.");
+    alert("Le fichier RMS ne peut pas etre ouvert. Verifiez la source puis reessayez.");
   }
 }
 
@@ -260,7 +380,43 @@ async function addResultFile(seasonId, tourNumber) {
   const season = state.seasons.find((item) => item.id === seasonId);
   const tour = season?.tours.find((item) => item.number === tourNumber);
   if (season?.sourceMode === SOURCE_MODES.dropbox) {
-    alert("Le mode Dropbox est en preparation. Repassez en mode local pour ajouter un fichier XLS.");
+    if (!season || !tour || !window.showOpenFilePicker) {
+      alert("Utilisez Microsoft Edge ou Google Chrome pour ajouter un fichier.");
+      return;
+    }
+    if (!hasDropboxToken()) {
+      const connected = await connectAndScanDropboxSeason(season);
+      if (!connected) return;
+    }
+    try {
+      const [sourceHandle] = await window.showOpenFilePicker({
+        types: [{
+          description: "Fichiers Excel",
+          accept: {
+            "application/vnd.ms-excel": [".xls"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+            "application/vnd.ms-excel.sheet.macroEnabled.12": [".xlsm"]
+          }
+        }]
+      });
+      const sourceFile = await sourceHandle.getFile();
+      const folderPath = `${ensureDropboxPath(season.dropboxPath, season.year)}/${tourFolderName(tour)}`;
+      const uploadPath = `${folderPath}/${sourceFile.name}`;
+      const uploadResult = await dropboxUpload(uploadPath, sourceFile);
+      const uploadedName = uploadResult.name || sourceFile.name;
+      tour.sourceFiles = [...new Set([...(tour.sourceFiles || []), uploadedName])]
+        .sort((first, second) => first.localeCompare(second, "fr"));
+      tour.file = uploadedName;
+      tour.status = "ready";
+      season.lastScan = new Date().toISOString();
+      render();
+      elements.scanResult.textContent = `${uploadedName} ajoute dans Dropbox (${tourFolderName(tour)}).`;
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        console.error(error);
+        alert("L'ajout du fichier XLS sur Dropbox a echoue.");
+      }
+    }
     return;
   }
   if (!season || !tour || !window.showOpenFilePicker) {
@@ -326,7 +482,9 @@ function sourceLabel(files) {
 
 function currentSourceInfo(season) {
   if (season.sourceMode === SOURCE_MODES.dropbox) {
-    return `Ressource active : Dropbox (${season.dropboxPath})`;
+    return hasDropboxToken()
+      ? `Ressource active : Dropbox (${season.dropboxPath})`
+      : `Ressource active : Dropbox non connecte (${season.dropboxPath})`;
   }
   const linkedRoot = linkedDirectoryHandles.get(season.id);
   return linkedRoot
@@ -339,13 +497,67 @@ function setSourceMode(mode) {
   if (season.sourceMode === mode) return;
   season.sourceMode = mode;
   season.sourceMessage = mode === SOURCE_MODES.dropbox
-    ? "Mode Dropbox actif. La connexion Dropbox API sera ajoutee dans une prochaine mise a jour."
+    ? "Mode Dropbox actif. Cliquez sur \"Connecter Dropbox\" pour analyser les fichiers."
     : "Mode local actif. Utilisez \"Lier le dossier LGS\" pour scanner les fichiers.";
   if (mode === SOURCE_MODES.dropbox) {
     linkedDirectoryHandles.delete(season.id);
     season.lastScan = "";
+    season.catalogMessage = "";
   }
   render();
+}
+
+async function connectAndScanDropboxSeason(season) {
+  const existingTokenHint = hasDropboxToken() ? "Token deja enregistre. Laissez vide pour le conserver." : "";
+  const tokenInput = window.prompt(`Access token Dropbox (Scoped App)\n${existingTokenHint}`, "");
+  if (tokenInput === null) return false;
+  if (tokenInput.trim()) setDropboxToken(tokenInput.trim());
+  if (!hasDropboxToken()) {
+    alert("Un access token Dropbox est requis.");
+    return false;
+  }
+
+  const currentPath = ensureDropboxPath(season.dropboxPath, season.year);
+  const pathInput = window.prompt("Chemin Dropbox du dossier LGS pour cette saison", currentPath);
+  if (pathInput === null) return false;
+  season.dropboxPath = ensureDropboxPath(pathInput, season.year);
+
+  try {
+    await scanDropboxSeason(season);
+    season.sourceMessage = "";
+    return true;
+  } catch (error) {
+    console.error(error);
+    season.sourceMessage = "Connexion Dropbox echouee. Verifiez le token et le chemin.";
+    alert("Impossible de lire Dropbox. Verifiez le token et le chemin du dossier LGS.");
+    return false;
+  }
+}
+
+async function scanDropboxSeason(season) {
+  let detectedCount = 0;
+  const basePath = ensureDropboxPath(season.dropboxPath, season.year);
+  for (const tour of season.tours) {
+    const folderPath = `${basePath}/${tourFolderName(tour)}`;
+    const entries = await dropboxListFolder(folderPath);
+    const excelEntries = entries
+      .filter((entry) => entry[".tag"] === "file" && /\.xls[xm]?$/i.test(entry.name))
+      .sort((first, second) => first.name.localeCompare(second.name, "fr"));
+    const files = excelEntries.map((entry) => entry.name);
+    tour.sourceFiles = files;
+    if (files.length) {
+      detectedCount += files.length;
+      const rmsFile = excelEntries.find((entry) => /extraction/i.test(entry.name)) || excelEntries[0];
+      tour.file = rmsFile.name;
+      if (files.some((name) => /\.xlsx?$/i.test(name))) tour.status = "imported";
+      else if (tour.status === "planned") tour.status = "ready";
+    }
+  }
+  season.lastScan = new Date().toISOString();
+  season.catalogMessage = "";
+  season.directory = `Dropbox : ${basePath}`;
+  render();
+  elements.scanResult.textContent = `${detectedCount} fichiers Excel detectes dans Dropbox.`;
 }
 
 function renderProgress(season) {
@@ -364,8 +576,7 @@ function updateTour(number, key, value) {
 async function linkSeasonFolder() {
   const season = activeSeason();
   if (season.sourceMode === SOURCE_MODES.dropbox) {
-    alert("Le mode Dropbox est actif. Revenez en mode local pour lier un dossier Windows.");
-    return false;
+    return connectAndScanDropboxSeason(season);
   }
   if (!window.showDirectoryPicker) {
     alert("Utilisez Microsoft Edge ou Google Chrome pour lier un dossier LGS.");
@@ -474,6 +685,9 @@ function importSeason(event) {
 
 async function findLatestCalculFile() {
   const season = activeSeason();
+  if (season.sourceMode === SOURCE_MODES.dropbox) {
+    return findLatestCalculFileDropbox(season);
+  }
   if (!linkedDirectoryHandles.has(season.id)) {
     console.log("❌ No linked directory for season:", season.id);
     return null;
@@ -561,13 +775,45 @@ async function findLatestCalculFile() {
   return null;
 }
 
+async function findLatestCalculFileDropbox(season) {
+  if (!hasDropboxToken()) return null;
+  const basePath = ensureDropboxPath(season.dropboxPath, season.year);
+  const calcFiles = [];
+  const rmsPaths = {};
+  const tourFolders = ["Finale", "T6", "T5", "T4", "T3", "T2", "T1"];
+
+  const rootEntries = await dropboxListFolder(basePath);
+  for (const entry of rootEntries) {
+    if (entry[".tag"] !== "file") continue;
+    if (!/\.xls[xm]?$/i.test(entry.name)) continue;
+    if (/Calcul La Grande Semaine/i.test(entry.name) && /HOMME_OU_DAME/i.test(entry.name)) {
+      calcFiles.push({ folder: "root", path: entry.path_lower || entry.path_display, name: entry.name });
+    }
+  }
+
+  for (const folderName of tourFolders) {
+    const folderPath = `${basePath}/${folderName}`;
+    const entries = await dropboxListFolder(folderPath);
+    for (const entry of entries) {
+      if (entry[".tag"] !== "file") continue;
+      if (!/\.xls[xm]?$/i.test(entry.name)) continue;
+      if (/Calcul La Grande Semaine/i.test(entry.name) && /HOMME_OU_DAME/i.test(entry.name)) {
+        calcFiles.push({ folder: folderName, path: entry.path_lower || entry.path_display, name: entry.name });
+      }
+      if (/2d\. Extraction XLS globale/i.test(entry.name) && !rmsPaths[folderName === "Finale" ? "finale" : folderName]) {
+        rmsPaths[folderName === "Finale" ? "finale" : folderName] = entry.path_lower || entry.path_display;
+      }
+    }
+  }
+
+  if (!calcFiles.length) return null;
+  const finaleFile = calcFiles.find((item) => item.name.includes("Finale"));
+  const selected = finaleFile || calcFiles[calcFiles.length - 1];
+  return { ...selected, rmsPaths, source: "dropbox" };
+}
+
 async function refreshStandings() {
   const season = activeSeason();
-  if (season.sourceMode === SOURCE_MODES.dropbox) {
-    elements.standingsStatus.textContent = "Mode Dropbox actif : la lecture automatique des fichiers sera disponible dans une prochaine mise a jour.";
-    elements.standingsContainer.innerHTML = "";
-    return;
-  }
   elements.standingsStatus.textContent = "Chargement en cours...";
   elements.standingsContainer.innerHTML = "";
   
@@ -577,17 +823,22 @@ async function refreshStandings() {
     let fileInfo = await findLatestCalculFile();
     
     if (!fileInfo) {
-      const hasLinked = linkedDirectoryHandles.has(season.id);
+      const hasLinked = season.sourceMode === SOURCE_MODES.dropbox
+        ? hasDropboxToken()
+        : linkedDirectoryHandles.has(season.id);
       console.log("No file found. Linked:", hasLinked);
       
       if (!hasLinked) {
-        // Try to automatically link the folder
-        console.log("Attempting to auto-link folder...");
-        elements.standingsStatus.textContent = "Liaison du dossier LGS en cours...";
+        console.log("Attempting to auto-link source...");
+        elements.standingsStatus.textContent = season.sourceMode === SOURCE_MODES.dropbox
+          ? "Connexion Dropbox en cours..."
+          : "Liaison du dossier LGS en cours...";
         
         const linked = await linkSeasonFolder();
         if (!linked) {
-          elements.standingsStatus.innerHTML = `<strong>Aucun fichier trouve.</strong><br>La liaison au dossier LGS a ete perdue (rechargement de page?). Cliquez sur "Lier le dossier LGS" pour reconnecter, puis revenez ici.`;
+          elements.standingsStatus.innerHTML = season.sourceMode === SOURCE_MODES.dropbox
+            ? "<strong>Aucun fichier trouve.</strong><br>Connectez Dropbox puis relancez le rafraichissement."
+            : `<strong>Aucun fichier trouve.</strong><br>La liaison au dossier LGS a ete perdue (rechargement de page?). Cliquez sur "Lier le dossier LGS" pour reconnecter, puis revenez ici.`;
           return;
         }
         
@@ -602,8 +853,9 @@ async function refreshStandings() {
     }
     
     console.log("Reading file:", fileInfo.name, "from folder:", fileInfo.folder);
-    
-    const file = await fileInfo.handle.getFile();
+    const file = season.sourceMode === SOURCE_MODES.dropbox
+      ? await dropboxDownload(fileInfo.path)
+      : await fileInfo.handle.getFile();
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
     
@@ -632,10 +884,14 @@ async function refreshStandings() {
     // Extract per-tour competition dates from the RMS export files (column B, row 1)
     // Format: "16.08.2026" → "16 août"  — one file per tour folder
     const tourDateMap = {};
-    const rmsHandles = fileInfo.rmsHandles || {};
-    for (const [tourKey, rmsHandle] of Object.entries(rmsHandles)) {
+    const rmsSources = season.sourceMode === SOURCE_MODES.dropbox
+      ? (fileInfo.rmsPaths || {})
+      : (fileInfo.rmsHandles || {});
+    for (const [tourKey, rmsSource] of Object.entries(rmsSources)) {
       try {
-        const rmsFile = await rmsHandle.getFile();
+        const rmsFile = season.sourceMode === SOURCE_MODES.dropbox
+          ? await dropboxDownload(rmsSource)
+          : await rmsSource.getFile();
         const rmsBuffer = await rmsFile.arrayBuffer();
         const rmsWb = XLSX.read(rmsBuffer, { type: "array" });
         const rmsSheet = rmsWb.Sheets[rmsWb.SheetNames[0]];
