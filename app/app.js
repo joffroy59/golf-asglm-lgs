@@ -1053,10 +1053,36 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       cell.className = "score-cell";
       if (col.bold) cell.style.fontWeight = "700";
       const val = col.value(player);
-      cell.innerHTML = `<div class="score-label">${col.label}</div><div class="score-value">${val !== undefined && val !== "" ? val : "—"}</div>`;
+      // Only show the value, not the label (label goes in header row)
+      cell.innerHTML = `<div class="score-value">${val !== undefined && val !== "" ? val : "—"}</div>`;
       row.appendChild(cell);
     }
     return row;
+  }
+
+  function makeColumnHeader(cols) {
+    const header = document.createElement("div");
+    header.className = "column-header";
+    header.style.gridTemplateColumns = `2rem 1.5fr ${cols.map(() => "1fr").join(" ")}`;
+    
+    // Rank column header (empty)
+    const rankHeader = document.createElement("div");
+    rankHeader.className = "header-cell";
+    header.appendChild(rankHeader);
+    
+    // Name column header (empty)
+    const nameHeader = document.createElement("div");
+    nameHeader.className = "header-cell";
+    header.appendChild(nameHeader);
+    
+    // Score column headers
+    for (const col of cols) {
+      const cell = document.createElement("div");
+      cell.className = "header-cell";
+      cell.textContent = col.label;
+      header.appendChild(cell);
+    }
+    return header;
   }
 
   function compactSeriesLabel(seriesName) {
@@ -1082,6 +1108,9 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     titleRow.appendChild(title);
     titleRow.appendChild(makeOpenFileBtn());
     group.appendChild(titleRow);
+
+    // Add column header row
+    group.appendChild(makeColumnHeader(cols));
 
     players.forEach(player => {
       group.appendChild(makePlayerRow(player, trueRank(player, players), cols));
