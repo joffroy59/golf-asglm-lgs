@@ -1080,14 +1080,12 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     topLink.textContent = "↑ Haut";
     topLink.addEventListener("click", e => {
       e.preventDefault();
-      // Scroll to show the section nav and content with proper spacing
+      // Scroll to the very top of the current tab panel
       const nearestPanel = group.closest(".standings-tab-panel");
       if (nearestPanel) {
-        // Calculate viewport position of panel
         const panelRect = nearestPanel.getBoundingClientRect();
-        // Scroll so panel appears with 40px margin from top, showing section nav and context
         window.scrollTo({
-          top: window.scrollY + panelRect.top - 40,
+          top: window.scrollY + panelRect.top,
           behavior: "smooth"
         });
       }
