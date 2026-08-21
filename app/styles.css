@@ -251,3 +251,57 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
   /* Page settings */
   @page { size: A4 portrait; margin: 1.4cm 1.6cm; }
 }
+
+/* H2 collapsible sections */
+.standings-panel {
+  position: relative;
+}
+.standings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+.standings-header details {
+  flex: 1;
+}
+.standings-panel details {
+  width: 100%;
+}
+.standings-panel summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  display: block;
+  padding: 0;
+  margin: 0;
+}
+.standings-panel summary::-webkit-details-marker { display: none; }
+.standings-panel summary::before {
+  content: '▼';
+  display: inline-block;
+  color: white;
+  font-size: .7rem;
+  font-weight: 700;
+  transition: transform .2s ease;
+  margin-right: .4rem;
+}
+.standings-panel details[open] > summary::before { transform: rotate(-90deg); }
+.standings-panel summary h2 {
+  display: inline-block;
+  background: #2856a3;
+  color: white;
+  padding: .3rem .6rem;
+  margin: 0;
+  font-size: 1.7rem;
+  letter-spacing: -.035em;
+}
+.standings-panel summary:hover h2 {
+  opacity: 0.9;
+}
+.standings-panel #refresh-standings-button {
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
