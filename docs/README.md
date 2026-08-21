@@ -27,6 +27,8 @@ Deleting a season never deletes Excel files. To prevent accidental removal of th
 - **Mode local**: select **Lier le dossier LGS** to choose `ASGLM <year>/LGS` from the local filesystem (Edge/Chrome).
 - **Mode Dropbox**: select **Connecter Dropbox**, provide a Dropbox access token, and set the season folder path (for example `/ASGLM 2026/LGS`).
 
+Security note: the Dropbox token is kept only for the current browser session and is never exported in the season JSON file.
+
 In both modes, the app scans `T1` to `T6` and `Finale` and records detected spreadsheets.
 
 **Ajouter fichier XLS** is available on every tour. In local mode, files are copied into the selected `LGS` folder. In Dropbox mode, files are uploaded to the configured Dropbox tour folder. Existing files are preserved via automatic rename when needed.
