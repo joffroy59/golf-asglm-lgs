@@ -1270,10 +1270,15 @@ function computeStatistics(standings) {
     stats.cardsPerTour[tour] = 0;
   });
 
+  // Track players we've already counted (to handle duplicates for NET/BRUT)
+  const seenPlayersPerCategory = {}; // e.g., { "DAME": new Set(), "HOMME": new Set() }
+  const seenPlayersPerSeries = {}; // e.g., { "serie 1": new Set(), ... }
+
   // Process each category (HOMME/DAME)
   for (const [category, seriesData] of Object.entries(standings)) {
     stats.playersByCategory[category] = 0;
     stats.cardsByCategory[category] = 0;
+    seenPlayersPerCategory[category] = new Set();
 
     if (!seriesData || Object.keys(seriesData).length === 0) continue;
 
@@ -1282,6 +1287,7 @@ function computeStatistics(standings) {
       if (!stats.playersBySeries[seriesKey]) {
         stats.playersBySeries[seriesKey] = { men: 0, women: 0, total: 0 };
         stats.cardsBySeries[seriesKey] = 0;
+        seenPlayersPerSeries[seriesKey] = new Set();
       }
 
       if (!Array.isArray(players)) continue;
@@ -1290,23 +1296,37 @@ function computeStatistics(standings) {
       for (const player of players) {
         if (!player.name || !player.name.trim()) continue;
 
-        // Count unique players by name
-        stats.uniquePlayerNames.add(player.name);
+        const playerName = player.name.trim();
 
-        // Count by category
-        stats.playersByCategory[category]++;
-        stats.totalPlayers++;
+        // Count unique players by name (only count once even if NET/BRUT duplicates exist)
+        stats.uniquePlayerNames.add(playerName);
+
+        // Count by category (only once per player, not for duplicates)
+        if (!seenPlayersPerCategory[category].has(playerName)) {
+          stats.playersByCategory[category]++;
+          stats.totalPlayers++;
+          seenPlayersPerCategory[category].add(playerName);
+        }
 
         // Count by gender (unique names only)
         if (category === "DAME") {
-          stats.uniqueWomenNames.add(player.name);
-          stats.playersBySeries[seriesKey].women++;
+          stats.uniqueWomenNames.add(playerName);
+          if (!seenPlayersPerSeries[seriesKey].has(playerName)) {
+            stats.playersBySeries[seriesKey].women++;
+            seenPlayersPerSeries[seriesKey].add(playerName);
+          }
         } else if (category === "HOMME") {
-          stats.uniqueMenNames.add(player.name);
-          stats.playersBySeries[seriesKey].men++;
+          stats.uniqueMenNames.add(playerName);
+          if (!seenPlayersPerSeries[seriesKey].has(playerName)) {
+            stats.playersBySeries[seriesKey].men++;
+            seenPlayersPerSeries[seriesKey].add(playerName);
+          }
         }
 
-        stats.playersBySeries[seriesKey].total++;
+        if (!seenPlayersPerSeries[seriesKey].has(playerName)) {
+          stats.playersBySeries[seriesKey].total++;
+          seenPlayersPerSeries[seriesKey].add(playerName);
+        }
 
         // Count cards played (each player record = one card)
         stats.cardsByCategory[category]++;

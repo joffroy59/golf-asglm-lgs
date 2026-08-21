@@ -38,5 +38,18 @@ window.LGS_HISTORICAL_SEASON_DATA = {
       6: ["2d. Extraction XLS globale.xls"],
       7: ["2d. Extraction XLS globale.xls"]
     }
+  },
+  2026: {
+    directory: "..\\ASGLM 2026\\LGS",
+    message: "Liaison automatique : inventaire local ASGLM 2026.",
+    tours: {
+      1: ["2d. Extraction XLS globale.xls"],
+      2: ["2d. Extraction XLS globale.xls"],
+      3: ["2d. Extraction XLS globale.xls"],
+      4: ["2d. Extraction XLS globale.xls"],
+      5: ["2d. Extraction XLS globale.xls"],
+      6: ["2d. Extraction XLS globale.xls"],
+      7: ["2d. Extraction XLS globale.xls"]
+    }
   }
 };
