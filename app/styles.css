@@ -71,7 +71,7 @@ h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
 .notes-panel, .setup-panel, .archive-panel, .standings-panel, .statistics-panel { margin-top: 2rem; padding: 1.4rem; border-top: 3px solid var(--green); background: #e5eadf; }
 .standings-panel { margin-top: 2rem; padding: 1.4rem; border-top: 3px solid var(--green); background: #e5eadf; display: block; }
 .standings-panel .section-header { display: flex; align-items: flex-start; justify-content: space-between; }
-.standings-panel .section-content { margin-top: 1rem; display: flex; align-items: start; gap: 2rem; flex-wrap: wrap; }
+.standings-panel .section-content { margin-top: 1rem; display: flex; align-items: start; gap: 2rem; flex-wrap: wrap; overflow-x: auto; }
 .standings-panel .section-content > button { margin-top: 0; }
 .statistics-panel { display: block; }
 .statistics-panel .section-header { display: flex; align-items: flex-start; justify-content: space-between; }
@@ -118,6 +118,8 @@ h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
 .standings-tab { cursor: pointer; border: 1px solid var(--line); padding: .4rem .8rem; color: var(--muted); background: var(--card); font-family: "Courier New", monospace; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; transition: background .12s; }
 .standings-tab:hover { background: #e5eadf; color: var(--ink); }
 .standings-tab.active { border-color: var(--green); color: var(--ink); background: var(--lime); }
+.standings-tab-panel { overflow-x: auto; display: block; }
+.standings-container { width: 100%; }
 @media (max-width: 650px) { .standings-panel { grid-template-columns: 1fr; } .standings-panel > button { grid-column: 1; grid-row: auto; } .player-row { grid-template-columns: 1fr !important; } .score-label { display: block; } .standings-tabs { gap: .25rem; } .standings-tab { font-size: .65rem; padding: .3rem .5rem; } }
 .notes-panel { display: block; }
 .notes-panel .section-header { display: flex; align-items: flex-start; justify-content: space-between; }
