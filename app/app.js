@@ -1440,7 +1440,7 @@ function renderStatistics(standings, fileName) {
             .sort((a, b) => a[0].localeCompare(b[0]))
             .map(([seriesKey, data]) => `
               <div>
-                <div style="font-weight: 600; margin-top: 0.5rem; margin-bottom: 0.3rem; color: var(--green);">${seriesKey.toUpperCase()}</div>
+                <div style="font-weight: 600; margin-top: 0.5rem; margin-bottom: 0.3rem; color: var(--green);">${seriesKey.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</div>
                 <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
                   <span class="statistics-detail-label">Femmes</span>
                   <span class="statistics-detail-value">${data.women}</span>
