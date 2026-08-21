@@ -38,5 +38,19 @@ window.LGS_HISTORICAL_SEASON_DATA = {
       6: ["2d. Extraction XLS globale.xls"],
       7: ["2d. Extraction XLS globale.xls"]
     }
+  },
+  2026: {
+    directory: "..\\ASGLM 2026\\LGS",
+    message: "Liaison automatique : inventaire local ASGLM 2026.",
+    tours: {
+      1: ["Calcul La Grande Semaine - STROKEPLAY - T1 - HOMME_OU_DAME_v2.12.xlsm"],
+      2: ["Calcul La Grande Semaine - STROKEPLAY - T2 - HOMME_OU_DAME_v2.12.xlsm"],
+      3: ["Calcul La Grande Semaine - STROKEPLAY - T3 - HOMME_OU_DAME_v2.12.xlsm"],
+      4: ["Calcul La Grande Semaine - STROKEPLAY - T4 - HOMME_OU_DAME_v2.12.xlsm"],
+      5: ["Calcul La Grande Semaine - STROKEPLAY - T5 - HOMME_OU_DAME_v2.12.xlsm"],
+      6: ["Calcul La Grande Semaine - STROKEPLAY - T6 - HOMME_OU_DAME_v2.12.xlsm"],
+      7: ["Calcul La Grande Semaine - STROKEPLAY - T7 - HOMME_OU_DAME_v2.12.xlsm"],
+      finale: ["Calcul La Grande Semaine - STROKEPLAY - Finale - HOMME_OU_DAME_v2.12.xlsm"]
+    }
   }
 };
