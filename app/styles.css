@@ -306,6 +306,20 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
   align-self: flex-start;
 }
 
+.standings-button-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.standings-button-group .button {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.8rem;
+}
+
+
 /* Collapsible serie rankings */
 .series-details {
   width: 100%;
