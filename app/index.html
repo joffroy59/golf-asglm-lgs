@@ -40,64 +40,99 @@
         <input id="import-input" type="file" accept="application/json,.json" />
       </section>
 
-      <section class="season-overview" aria-labelledby="season-title">
-        <div>
-          <p class="eyebrow">TABLEAU DE BORD</p>
-          <h2 id="season-title"></h2>
+      <section class="season-overview collapsible-section" aria-labelledby="season-title" data-section="season-overview">
+        <div class="section-header" onclick="toggleSection('season-overview')">
+          <div>
+            <p class="eyebrow">TABLEAU DE BORD</p>
+            <h2 id="season-title"></h2>
+          </div>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="section-content" id="season-overview-content">
           <p id="season-path" class="path"></p>
           <p id="source-info" class="source-info"></p>
           <p id="scan-result" class="scan-result"></p>
-        </div>
-        <div class="season-actions">
-          <div class="source-toggle" role="group" aria-label="Source des fichiers">
-            <button class="button button-quiet source-toggle-button" id="source-local-button" type="button" aria-pressed="true">Mode local</button>
-            <button class="button button-quiet source-toggle-button" id="source-dropbox-button" type="button" aria-pressed="false">Mode Dropbox</button>
+          <div class="season-actions">
+            <div class="source-toggle" role="group" aria-label="Source des fichiers">
+              <button class="button button-quiet source-toggle-button" id="source-local-button" type="button" aria-pressed="true">Mode local</button>
+              <button class="button button-quiet source-toggle-button" id="source-dropbox-button" type="button" aria-pressed="false">Mode Dropbox</button>
+            </div>
+            <button class="button button-quiet" id="link-folder-button" type="button">Lier le dossier LGS</button>
+            <div class="progress-block">
+              <span id="progress-label"></span>
+              <div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div>
+            </div>
           </div>
-          <button class="button button-quiet" id="link-folder-button" type="button">Lier le dossier LGS</button>
-          <div class="progress-block">
-            <span id="progress-label"></span>
-            <div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div>
+        </div>
+      </section>
+
+      <section id="tour-section" class="collapsible-section" data-section="tour-section">
+        <div class="section-header" onclick="toggleSection('tour-section')">
+          <div>
+            <p class="eyebrow">TOURS DE LA SAISON</p>
+            <h2>Progression</h2>
           </div>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="section-content" id="tour-section-content">
+          <div id="tour-grid" class="tour-grid" aria-label="Tours de la saison"></div>
         </div>
       </section>
 
-      <section id="tour-grid" class="tour-grid" aria-label="Tours de la saison"></section>
-
-      <section class="standings-panel">
-        <div>
-          <p class="eyebrow">CLASSEMENT EN COURS</p>
-          <h2>Resultats du jour</h2>
-          <p>Affiche les 10 meilleurs scores par serie selon le dernier fichier disponible.</p>
+      <section class="standings-panel collapsible-section" data-section="standings-section">
+        <div class="section-header" onclick="toggleSection('standings-section')">
+          <div>
+            <p class="eyebrow">CLASSEMENT EN COURS</p>
+            <h2>Resultats du jour</h2>
+            <p>Affiche les 10 meilleurs scores par serie selon le dernier fichier disponible.</p>
+          </div>
+          <span class="collapse-icon">▼</span>
         </div>
-        <button class="button button-quiet" id="refresh-standings-button" type="button">Rafraîchir classement</button>
-        <div id="standings-container" class="standings-container"></div>
-        <p id="standings-status" class="standings-status"></p>
+        <div class="section-content" id="standings-section-content">
+          <button class="button button-quiet" id="refresh-standings-button" type="button">Rafraîchir classement</button>
+          <div id="standings-container" class="standings-container"></div>
+          <p id="standings-status" class="standings-status"></p>
+        </div>
       </section>
 
-      <section class="statistics-panel" aria-labelledby="statistics-title">
-        <div>
-          <p class="eyebrow">STATISTIQUES DE COMPETITION</p>
-          <h2 id="statistics-title">Analyse des participations</h2>
-          <p>Apercu des joueurs inscrits et des cartes jouees selon le dernier fichier.</p>
+      <section class="statistics-panel collapsible-section" aria-labelledby="statistics-title" data-section="statistics-section">
+        <div class="section-header" onclick="toggleSection('statistics-section')">
+          <div>
+            <p class="eyebrow">STATISTIQUES DE COMPETITION</p>
+            <h2 id="statistics-title">Analyse des participations</h2>
+            <p>Apercu des joueurs inscrits et des cartes jouees selon le dernier fichier.</p>
+          </div>
+          <span class="collapse-icon">▼</span>
         </div>
-        <div id="statistics-container" class="statistics-container"></div>
-        <p id="statistics-status" class="statistics-status"></p>
+        <div class="section-content" id="statistics-section-content">
+          <div id="statistics-container" class="statistics-container"></div>
+          <p id="statistics-status" class="statistics-status"></p>
+        </div>
       </section>
 
-      <section class="notes-panel">
-        <div>
-          <p class="eyebrow">MEMO DE SAISON</p>
-          <h2>Points a retenir</h2>
+      <section class="notes-panel collapsible-section" data-section="notes-section">
+        <div class="section-header" onclick="toggleSection('notes-section')">
+          <div>
+            <p class="eyebrow">MEMO DE SAISON</p>
+            <h2>Points a retenir</h2>
+          </div>
+          <span class="collapse-icon">▼</span>
         </div>
-        <textarea id="season-notes" rows="5" placeholder="Ex. Controle des series Dames termine avant la Finale..."></textarea>
+        <div class="section-content" id="notes-section-content">
+          <textarea id="season-notes" rows="5" placeholder="Ex. Controle des series Dames termine avant la Finale..."></textarea>
+        </div>
       </section>
 
-      <section class="setup-panel" aria-labelledby="setup-title">
-        <div>
-          <p class="eyebrow">NOUVELLE ANNEE</p>
-          <h2 id="setup-title">Initialiser une saison</h2>
-          <p>Pour le detail des imports RMS et du traitement des resultats, consultez la <a href="../readme.md" target="_blank" rel="noopener">documentation complete</a>.</p>
+      <section class="setup-panel collapsible-section" aria-labelledby="setup-title" data-section="setup-section">
+        <div class="section-header" onclick="toggleSection('setup-section')">
+          <div>
+            <p class="eyebrow">NOUVELLE ANNEE</p>
+            <h2 id="setup-title">Initialiser une saison</h2>
+            <p>Pour le detail des imports RMS et du traitement des resultats, consultez la <a href="../readme.md" target="_blank" rel="noopener">documentation complete</a>.</p>
+          </div>
+          <span class="collapse-icon">▼</span>
         </div>
+        <div class="section-content" id="setup-section-content">
         <ol>
           <li>Creez le dossier parent <code>..\ASGLM 2026</code>.</li>
           <li>Depuis ce depot, lancez <code>initYear.bat</code> et saisissez <code>2026</code>.</li>

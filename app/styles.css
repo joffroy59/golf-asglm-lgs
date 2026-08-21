@@ -14,8 +14,15 @@
 body { margin: 0; color: var(--ink); background: radial-gradient(circle at 100% 0, #dce8b6 0, transparent 30rem), var(--paper); font-family: Georgia, "Times New Roman", serif; }
 button, input, select, textarea { font: inherit; }
 .shell { width: min(1180px, calc(100% - 2.5rem)); margin: 0 auto; padding: 4.5rem 0 3rem; }
+.collapsible-section { position: relative; }
+.section-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; cursor: pointer; user-select: none; }
+.section-header > div { flex: 1; }
+.collapse-icon { font-size: 1rem; line-height: 1.7rem; transition: transform 0.3s ease-in-out; flex-shrink: 0; }
+.collapsible-section.collapsed .collapse-icon { transform: rotate(-90deg); }
+.section-content { transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; max-height: 5000px; opacity: 1; overflow: hidden; }
+.collapsible-section.collapsed .section-content { max-height: 0; opacity: 0; }
 .hero { padding-bottom: 3rem; border-bottom: 1px solid var(--line); }
-.hero-row, .season-overview, .archive-panel { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }
+.hero-row, .season-actions { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }
 .eyebrow { margin: 0 0 .55rem; color: var(--green); font-family: "Courier New", monospace; font-size: .72rem; font-weight: 700; letter-spacing: .12em; }
 h1, h2, h3, p { margin-top: 0; }
 h1 { max-width: 760px; margin-bottom: .7rem; font-size: clamp(3rem, 8vw, 6.2rem); letter-spacing: -.065em; line-height: .89; }
@@ -62,16 +69,14 @@ h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
 .tour-card input, .tour-card select, #season-dialog input { width: 100%; margin-top: .28rem; font-family: Georgia, "Times New Roman", serif; font-size: .84rem; }
 .source-summary { min-height: 1.2rem; margin: .65rem 0 0; color: var(--green); font-family: "Courier New", monospace; font-size: .67rem; line-height: 1.35; }
 .notes-panel, .setup-panel, .archive-panel, .standings-panel, .statistics-panel { margin-top: 2rem; padding: 1.4rem; border-top: 3px solid var(--green); background: #e5eadf; }
-.standings-panel { display: grid; grid-template-columns: minmax(250px, 1fr) auto; gap: 2rem; align-items: start; }
-.standings-panel > div { grid-column: 1; }
-.standings-panel > button { grid-column: 2; grid-row: 1 / 3; }
-.standings-panel > div > p { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
-.standings-container { grid-column: 1 / -1; margin-top: 1rem; }
-.standings-status { grid-column: 1 / -1; min-height: 1rem; margin: .5rem 0 0; color: var(--muted); font-family: "Courier New", monospace; font-size: .75rem; }
+.standings-panel { margin-top: 2rem; padding: 1.4rem; border-top: 3px solid var(--green); background: #e5eadf; display: block; }
+.standings-panel .section-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.standings-panel .section-content { margin-top: 1rem; display: flex; align-items: start; gap: 2rem; flex-wrap: wrap; }
+.standings-panel .section-content > button { margin-top: 0; }
 .statistics-panel { display: block; }
-.statistics-panel > div > p { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
-.statistics-container { margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem; }
-.stat-card { background: var(--card); border: 1px solid var(--line); padding: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+.statistics-panel .section-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.statistics-panel .section-content { margin-top: 1rem; }
+.statistics-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem; }
 .stat-label { font-family: "Courier New", monospace; font-size: .75rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .stat-value { font-size: 2rem; font-weight: 700; color: var(--green); line-height: 1; }
 .stat-description { font-size: .8rem; color: var(--muted); line-height: 1.4; }
@@ -82,6 +87,9 @@ h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
 .statistics-detail-row:last-child { border-bottom: none; }
 .statistics-detail-label { color: var(--muted); }
 .statistics-detail-value { font-weight: 700; color: var(--ink); }
+.statistics-detail-content { transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; max-height: 500px; opacity: 1; overflow: hidden; }
+.statistics-detail-content.statistics-detail-collapsed { max-height: 0; opacity: 0; }
+.statistics-toggle-icon { font-size: 0.75rem; transition: transform 0.3s ease-in-out; }
 .statistics-status { min-height: 1rem; margin-top: .5rem; color: var(--muted); font-family: "Courier New", monospace; font-size: .75rem; }
 @media (max-width: 650px) { .statistics-container { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .8rem; } .stat-card { padding: .75rem; } .stat-value { font-size: 1.5rem; } }
 .cat-heading { margin: .4rem 0 .15rem; font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: var(--line); display: inline-block; padding: .15rem .5rem; scroll-margin-top: 8.5rem; }
@@ -111,9 +119,13 @@ h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
 .standings-tab:hover { background: #e5eadf; color: var(--ink); }
 .standings-tab.active { border-color: var(--green); color: var(--ink); background: var(--lime); }
 @media (max-width: 650px) { .standings-panel { grid-template-columns: 1fr; } .standings-panel > button { grid-column: 1; grid-row: auto; } .player-row { grid-template-columns: 1fr !important; } .score-label { display: block; } .standings-tabs { gap: .25rem; } .standings-tab { font-size: .65rem; padding: .3rem .5rem; } }
-.notes-panel { display: grid; grid-template-columns: minmax(170px, .6fr) 1.4fr; gap: 2rem; }
+.notes-panel { display: block; }
+.notes-panel .section-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.notes-panel .section-content { margin-top: 1rem; }
 .notes-panel textarea { width: 100%; min-height: 120px; resize: vertical; line-height: 1.45; }
-.setup-panel { display: grid; grid-template-columns: minmax(250px, 1fr) 1.15fr; gap: 2rem; }
+.setup-panel { display: block; }
+.setup-panel .section-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.setup-panel .section-content { margin-top: 1rem; }
 .setup-panel p { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
 .setup-panel a { color: var(--green); font-weight: 700; }
 .setup-panel ol { margin: 0; padding-left: 1.25rem; line-height: 1.7; }

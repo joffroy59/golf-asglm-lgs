@@ -15,6 +15,26 @@ const STATUS_LABELS = {
 
 let currentStandingsFile = null;
 
+// Toggle section collapse/expand
+function toggleSection(sectionId) {
+  const section = document.querySelector(`[data-section="${sectionId}"]`);
+  if (section) {
+    section.classList.toggle('collapsed');
+    localStorage.setItem(`section-collapsed-${sectionId}`, section.classList.contains('collapsed'));
+  }
+}
+
+// Restore section collapse states from localStorage
+function restoreSectionStates() {
+  ['season-overview', 'tour-section', 'standings-section', 'statistics-section', 'notes-section', 'setup-section'].forEach(sectionId => {
+    const isCollapsed = localStorage.getItem(`section-collapsed-${sectionId}`) === 'true';
+    const section = document.querySelector(`[data-section="${sectionId}"]`);
+    if (section && isCollapsed) {
+      section.classList.add('collapsed');
+    }
+  });
+}
+
 const elements = {
   seasonSelect: document.querySelector("#season-select"),
   seasonTitle: document.querySelector("#season-title"),
@@ -282,6 +302,7 @@ function render() {
     ? "Conservez au moins une saison dans l'application."
     : "Une confirmation par annee sera demandee.";
   saveState();
+  restoreSectionStates();
 }
 
 function renderTours(season) {
@@ -1363,69 +1384,97 @@ function renderStatistics(standings, fileName) {
   // Category breakdown
   const categoryHtml = `
     <div class="statistics-detail">
-      <div class="statistics-detail-title">Par catégorie</div>
-      ${
-        Object.entries(stats.playersByCategory)
-          .map(([cat, count]) => `
-            <div class="statistics-detail-row">
-              <div class="statistics-detail-label">${cat}</div>
-              <div class="statistics-detail-value">${count} <span style="font-size: 0.8rem; color: #888;">cartes</span></div>
-            </div>
-          `).join("")
-      }
+      <div class="statistics-detail-title" style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;" data-toggle="category">
+        <span>Par catégorie</span>
+        <span class="statistics-toggle-icon">▼</span>
+      </div>
+      <div class="statistics-detail-content" data-content="category">
+        ${
+          Object.entries(stats.playersByCategory)
+            .map(([cat, count]) => `
+              <div class="statistics-detail-row">
+                <div class="statistics-detail-label">${cat}</div>
+                <div class="statistics-detail-value">${count} <span style="font-size: 0.8rem; color: #888;">cartes</span></div>
+              </div>
+            `).join("")
+        }
+      </div>
     </div>
   `;
 
   // Tour breakdown
   const tourHtml = `
     <div class="statistics-detail">
-      <div class="statistics-detail-title">Cartes par tour</div>
-      ${
-        Object.entries(stats.cardsPerTour)
-          .map(([tour, count]) => count > 0 ? `
-            <div class="statistics-detail-row">
-              <div class="statistics-detail-label">${tour}</div>
-              <div class="statistics-detail-value">${count}</div>
-            </div>
-          ` : "")
-          .join("")
-      }
-      ${Object.values(stats.cardsPerTour).every(c => c === 0) ? 
-        '<div style="padding: 0.5rem 0; color: #888; font-size: 0.8rem;">Pas de données de tour</div>' : 
-        ""}
+      <div class="statistics-detail-title" style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;" data-toggle="tour">
+        <span>Cartes par tour</span>
+        <span class="statistics-toggle-icon">▼</span>
+      </div>
+      <div class="statistics-detail-content" data-content="tour">
+        ${
+          Object.entries(stats.cardsPerTour)
+            .map(([tour, count]) => count > 0 ? `
+              <div class="statistics-detail-row">
+                <div class="statistics-detail-label">${tour}</div>
+                <div class="statistics-detail-value">${count}</div>
+              </div>
+            ` : "")
+            .join("")
+        }
+        ${Object.values(stats.cardsPerTour).every(c => c === 0) ? 
+          '<div style="padding: 0.5rem 0; color: #888; font-size: 0.8rem;">Pas de données de tour</div>' : 
+          ""}
+      </div>
     </div>
   `;
 
   // Series breakdown
   const seriesHtml = `
     <div class="statistics-detail">
-      <div class="statistics-detail-title">Répartition par série</div>
-      ${
-        Object.entries(stats.playersBySeries)
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([seriesKey, data]) => `
-            <div>
-              <div style="font-weight: 600; margin-top: 0.5rem; margin-bottom: 0.3rem; color: var(--green);">${seriesKey.toUpperCase()}</div>
-              <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
-                <span class="statistics-detail-label">Femmes</span>
-                <span class="statistics-detail-value">${data.women}</span>
+      <div class="statistics-detail-title" style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;" data-toggle="series">
+        <span>Répartition par série</span>
+        <span class="statistics-toggle-icon">▼</span>
+      </div>
+      <div class="statistics-detail-content" data-content="series">
+        ${
+          Object.entries(stats.playersBySeries)
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([seriesKey, data]) => `
+              <div>
+                <div style="font-weight: 600; margin-top: 0.5rem; margin-bottom: 0.3rem; color: var(--green);">${seriesKey.toUpperCase()}</div>
+                <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
+                  <span class="statistics-detail-label">Femmes</span>
+                  <span class="statistics-detail-value">${data.women}</span>
+                </div>
+                <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
+                  <span class="statistics-detail-label">Hommes</span>
+                  <span class="statistics-detail-value">${data.men}</span>
+                </div>
+                <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
+                  <span class="statistics-detail-label">Total</span>
+                  <span class="statistics-detail-value">${data.total}</span>
+                </div>
               </div>
-              <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
-                <span class="statistics-detail-label">Hommes</span>
-                <span class="statistics-detail-value">${data.men}</span>
-              </div>
-              <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
-                <span class="statistics-detail-label">Total</span>
-                <span class="statistics-detail-value">${data.total}</span>
-              </div>
-            </div>
-          `).join("")
-      }
+            `).join("")
+        }
+      </div>
     </div>
   `;
 
   detailsDiv.innerHTML = categoryHtml + tourHtml + seriesHtml;
   container.appendChild(detailsDiv);
+  
+  // Add toggle event listeners for collapsible sections
+  const toggleButtons = container.querySelectorAll('[data-toggle]');
+  toggleButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const contentType = this.getAttribute('data-toggle');
+      const content = container.querySelector(`[data-content="${contentType}"]`);
+      const icon = this.querySelector('.statistics-toggle-icon');
+      
+      content.classList.toggle('statistics-detail-collapsed');
+      icon.textContent = content.classList.contains('statistics-detail-collapsed') ? '▶' : '▼';
+    });
+  });
 }
 
 
@@ -2146,3 +2195,4 @@ elements.deleteForm.addEventListener("submit", (event) => {
 elements.refreshStandingsButton.addEventListener("click", refreshStandings);
 
 render();
+restoreSectionStates();
