@@ -1309,21 +1309,14 @@ function computeStatistics(standings) {
         }
 
         // Count by gender (unique names only)
-        if (category === "DAME") {
-          stats.uniqueWomenNames.add(playerName);
-          if (!seenPlayersPerSeries[seriesKey].has(playerName)) {
-            stats.playersBySeries[seriesKey].women++;
-            seenPlayersPerSeries[seriesKey].add(playerName);
-          }
-        } else if (category === "HOMME") {
-          stats.uniqueMenNames.add(playerName);
-          if (!seenPlayersPerSeries[seriesKey].has(playerName)) {
-            stats.playersBySeries[seriesKey].men++;
-            seenPlayersPerSeries[seriesKey].add(playerName);
-          }
-        }
-
         if (!seenPlayersPerSeries[seriesKey].has(playerName)) {
+          if (category === "DAME") {
+            stats.uniqueWomenNames.add(playerName);
+            stats.playersBySeries[seriesKey].women++;
+          } else if (category === "HOMME") {
+            stats.uniqueMenNames.add(playerName);
+            stats.playersBySeries[seriesKey].men++;
+          }
           stats.playersBySeries[seriesKey].total++;
           seenPlayersPerSeries[seriesKey].add(playerName);
         }
