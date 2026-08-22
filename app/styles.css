@@ -315,9 +315,21 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
 .standings-button-group {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
   margin: 0.7rem 0 0.9rem;
+}
+
+.standings-source-inline {
+  margin-right: auto;
+  color: var(--muted);
+  font-family: "Courier New", monospace;
+  font-size: .75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .standings-button-group .button {

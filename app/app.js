@@ -39,10 +39,41 @@ const elements = {
   deleteSeasonButton: document.querySelector("#delete-season-button"),
   standingsContainer: document.querySelector("#standings-container"),
   standingsStatus: document.querySelector("#standings-status"),
+  standingsSourceInfo: document.querySelector("#standings-source-info"),
+  statisticsSourceInfo: document.querySelector("#statistics-source-info"),
   refreshStandingsButton: document.querySelector("#refresh-standings-button"),
   collapseAllButton: document.querySelector("#collapse-all-button"),
   expandAllButton: document.querySelector("#expand-all-button")
 };
+
+function currentSourceRootLabel(season) {
+  if (!season) return "";
+  return season.sourceMode === SOURCE_MODES.dropbox
+    ? `Dropbox : ${ensureDropboxPath(season.dropboxPath, season.year)}`
+    : season.directory;
+}
+
+function compactFolderName(path) {
+  const parts = String(path || "").split(/[\\/]+/).filter(Boolean);
+  return parts[parts.length - 1] || String(path || "");
+}
+
+function compactUsedFolderLabel(season, fileInfo = null) {
+  const sourceRoot = currentSourceRootLabel(season);
+  const sourceFolder = season?.sourceMode === SOURCE_MODES.dropbox
+    ? compactFolderName(ensureDropboxPath(season.dropboxPath, season.year))
+    : compactFolderName(sourceRoot);
+  const tourSuffix = fileInfo?.folder && fileInfo.folder !== "root" ? `\\${fileInfo.folder}` : "";
+  return `Dossier lie : ${sourceFolder}${tourSuffix}`;
+}
+
+function formatUsedFolderLabel(season, fileInfo) {
+  const sourceRoot = currentSourceRootLabel(season);
+  if (!fileInfo?.folder || fileInfo.folder === "root") return sourceRoot;
+  return season.sourceMode === SOURCE_MODES.dropbox
+    ? `${sourceRoot}/${fileInfo.folder}`
+    : `${sourceRoot}\\${fileInfo.folder}`;
+}
 
 function makeSeason(year, directory) {
   const seasonYear = Number(year);
@@ -271,6 +302,12 @@ function render() {
   elements.linkFolderButton.title = isDropboxMode
     ? "Connecter puis analyser le dossier Dropbox de cette saison."
     : "Lier le dossier LGS local pour analyser les fichiers.";
+  const sourceRoot = currentSourceRootLabel(season);
+  if (elements.standingsSourceInfo) {
+    elements.standingsSourceInfo.textContent = `Dossier utilise : ${compactUsedFolderLabel(season)}`;
+    elements.standingsSourceInfo.title = sourceRoot;
+  }
+  if (elements.statisticsSourceInfo) elements.statisticsSourceInfo.textContent = `Dossier utilise : ${sourceRoot}`;
   elements.scanResult.textContent = season.sourceMessage
     || season.catalogMessage
     || (season.lastScan
@@ -1051,6 +1088,15 @@ async function refreshStandings() {
       name: fileInfo.name
     };
 
+    const selectedFolder = formatUsedFolderLabel(season, fileInfo);
+    if (elements.standingsSourceInfo) {
+      elements.standingsSourceInfo.textContent = `Dossier utilise : ${compactUsedFolderLabel(season, fileInfo)}`;
+      elements.standingsSourceInfo.title = selectedFolder;
+    }
+    if (elements.statisticsSourceInfo) {
+      elements.statisticsSourceInfo.textContent = `Dossier utilise : ${selectedFolder}`;
+    }
+
     renderStandings(standings, fileInfo.name, isFinaleFile, finaleHasBeenPlayed, tourDateMap);
     renderStatistics(standings, fileInfo.name, tourDateMap);
   } catch (error) {
@@ -1351,15 +1397,22 @@ function computeStatistics(standings) {
 function renderStatistics(standings, fileName, tourDateMap = {}) {
   const stats = computeStatistics(standings);
   const container = document.getElementById("statistics-container");
+  const daysPlayedContainer = document.getElementById("days-played-ranking-container");
   const statusEl = document.getElementById("statistics-status");
 
-  if (!container) return;
+  if (!container && !daysPlayedContainer) return;
 
-  container.innerHTML = "";
+  if (container) container.innerHTML = "";
+  if (daysPlayedContainer) daysPlayedContainer.innerHTML = "";
   statusEl.textContent = `Données de : ${fileName}`;
 
   if (stats.totalCards === 0) {
-    container.innerHTML = "<p style='color: #888; font-style: italic; padding: 1rem 0;'>Aucune donnée disponible.</p>";
+    if (container) {
+      container.innerHTML = "<p style='color: #888; font-style: italic; padding: 1rem 0;'>Aucune donnée disponible.</p>";
+    }
+    if (daysPlayedContainer) {
+      daysPlayedContainer.innerHTML = "<p style='color: #888; font-style: italic; padding: 1rem 0;'>Aucune donnée disponible.</p>";
+    }
     return;
   }
 
@@ -1389,7 +1442,7 @@ function renderStatistics(standings, fileName, tourDateMap = {}) {
   const mainStatsDiv = document.createElement("div");
   mainStatsDiv.className = "statistics-container";
   mainStatsDiv.innerHTML = mainStatsHtml;
-  container.appendChild(mainStatsDiv);
+  if (container) container.appendChild(mainStatsDiv);
 
   // Create detailed breakdown section
   const detailsDiv = document.createElement("div");
@@ -1463,9 +1516,14 @@ function renderStatistics(standings, fileName, tourDateMap = {}) {
     </div>
   `;
 
-  const daysPlayedRankingHtml = `
-    <div class="statistics-detail">
-      <div class="statistics-detail-title">Classement jours joués</div>
+  detailsDiv.innerHTML = categoryHtml + tourHtml + seriesHtml;
+  if (container) container.appendChild(detailsDiv);
+
+  if (daysPlayedContainer) {
+    const rankingCard = document.createElement("div");
+    rankingCard.className = "statistics-detail";
+    rankingCard.innerHTML = `
+      <div class="statistics-detail-title">Classement global</div>
       ${
         stats.daysPlayedRanking.length > 0
           ? stats.daysPlayedRanking.map((entry, index) => `
@@ -1476,11 +1534,9 @@ function renderStatistics(standings, fileName, tourDateMap = {}) {
             `).join("")
           : '<div style="padding: 0.5rem 0; color: #888; font-size: 0.8rem;">Pas de données</div>'
       }
-    </div>
-  `;
-
-  detailsDiv.innerHTML = categoryHtml + tourHtml + seriesHtml + daysPlayedRankingHtml;
-  container.appendChild(detailsDiv);
+    `;
+    daysPlayedContainer.appendChild(rankingCard);
+  }
 }
 
 
