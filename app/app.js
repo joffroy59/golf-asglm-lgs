@@ -1711,6 +1711,17 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     return allSorted.filter(p => p.total < player.total).length + 1;
   }
 
+  function getPlayedDaysCount(player) {
+    const tourDays = player.tourScores && typeof player.tourScores === "object"
+      ? Object.values(player.tourScores).filter(v => v !== undefined && v !== null && v !== "").length
+      : 0;
+    const hasFinaleScore = player.finalScore !== undefined
+      && player.finalScore !== null
+      && String(player.finalScore).trim() !== ""
+      && !isNaN(parseFloat(player.finalScore));
+    return tourDays + (hasFinaleScore ? 1 : 0);
+  }
+
   function makeOpenFileBtn() {
     const btn = document.createElement("button");
     btn.className = "open-file-btn";
@@ -1834,6 +1845,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     // Calculate best score for each column
     const bestScores = {};
     cols.forEach((col, colIndex) => {
+      if (col.best === false) return;
       const scores = players.map(p => {
         const val = col.value(p);
         return typeof val === 'number' ? val : null;
@@ -2029,6 +2041,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     for (const scoreType of scoreTypes) {
       const totalCols = [
         { label: "Meilleur tour", value: p => p.bestScore },
+        { label: "Jours joues", value: p => getPlayedDaysCount(p), best: false },
         ...(isFinaleFile && finaleHasBeenPlayed ? [{ label: "Finale", value: p => p.finalScore }] : []),
         { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
       ];
@@ -2155,6 +2168,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     for (const scoreType of scoreTypes) {
       const totalCols = [
         { label: "Meilleur tour", value: p => p.bestScore },
+        { label: "Jours joues", value: p => getPlayedDaysCount(p), best: false },
         ...(isFinaleFile && finaleHasBeenPlayed ? [{ label: "Finale", value: p => p.finalScore }] : []),
         { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
       ];
