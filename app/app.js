@@ -1804,6 +1804,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     const header = document.createElement("div");
     header.className = "column-header";
     header.style.gridTemplateColumns = `2rem 1.5fr ${cols.map(() => "1fr").join(" ")}`;
+    const colHeaderCells = [];
 
     // Rank column header (empty)
     const rankHeader = document.createElement("div");
@@ -1821,8 +1822,9 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       cell.className = "header-cell";
       cell.textContent = col.label;
       header.appendChild(cell);
+      colHeaderCells.push(cell);
     }
-    return header;
+    return { header, colHeaderCells };
   }
 
   function compactSeriesLabel(seriesName) {
@@ -1861,7 +1863,8 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     summary.appendChild(titleRow);
 
     // Add column header row inside details
-    details.appendChild(makeColumnHeader(cols));
+    const { header: columnHeader, colHeaderCells } = makeColumnHeader(cols);
+    details.appendChild(columnHeader);
 
     // Calculate best score for each column
     const bestScores = {};
@@ -1879,10 +1882,81 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
 
     // Use combinedRankingGroup for ranking if provided (for series 3-4), otherwise use current series players
     const rankingGroup = combinedRankingGroup || players;
+    const basePlayers = [...players];
+    const rowsContainer = document.createElement("div");
+    details.appendChild(rowsContainer);
+    const sortState = { colIndex: null, direction: null };
 
-    players.forEach(player => {
-      details.appendChild(makePlayerRow(player, trueRank(player, rankingGroup), cols, bestScores));
+    function parseSortableValue(raw) {
+      if (typeof raw === "number") return raw;
+      const str = String(raw ?? "").trim();
+      if (!str) return Number.POSITIVE_INFINITY;
+      const num = Number.parseFloat(str.replace(",", "."));
+      return Number.isNaN(num) ? str.toLowerCase() : num;
+    }
+
+    function getSortedPlayers() {
+      if (sortState.colIndex === null) return [...basePlayers];
+
+      const col = cols[sortState.colIndex];
+      const dir = sortState.direction === "asc" ? 1 : -1;
+      return [...basePlayers].sort((a, b) => {
+        const av = parseSortableValue(col.sortValue ? col.sortValue(a) : col.value(a));
+        const bv = parseSortableValue(col.sortValue ? col.sortValue(b) : col.value(b));
+
+        if (typeof av === "number" && typeof bv === "number") {
+          const d = (av - bv) * dir;
+          if (d !== 0) return d;
+        } else {
+          const d = String(av).localeCompare(String(bv)) * dir;
+          if (d !== 0) return d;
+        }
+        const byTotal = a.total - b.total;
+        return byTotal !== 0 ? byTotal : a.name.localeCompare(b.name);
+      });
+    }
+
+    function updateSortHeaders() {
+      cols.forEach((col, colIndex) => {
+        const cell = colHeaderCells[colIndex];
+        if (!col.sortable) {
+          cell.textContent = col.label;
+          return;
+        }
+        cell.style.cursor = "pointer";
+        if (sortState.colIndex === colIndex) {
+          cell.textContent = `${col.label} ${sortState.direction === "asc" ? "▲" : "▼"}`;
+        } else {
+          cell.textContent = `${col.label} ⇅`;
+        }
+      });
+    }
+
+    function renderRows() {
+      rowsContainer.innerHTML = "";
+      const rows = getSortedPlayers();
+      rows.forEach(player => {
+        rowsContainer.appendChild(makePlayerRow(player, trueRank(player, rankingGroup), cols, bestScores));
+      });
+    }
+
+    cols.forEach((col, colIndex) => {
+      if (!col.sortable) return;
+      const cell = colHeaderCells[colIndex];
+      cell.addEventListener("click", () => {
+        if (sortState.colIndex !== colIndex) {
+          sortState.colIndex = colIndex;
+          sortState.direction = col.defaultSortDirection || "desc";
+        } else {
+          sortState.direction = sortState.direction === "desc" ? "asc" : "desc";
+        }
+        updateSortHeaders();
+        renderRows();
+      });
     });
+
+    updateSortHeaders();
+    renderRows();
 
     // Back-to-top link + local collapse/expand controls
     const topLinkRow = document.createElement("div");
@@ -2062,7 +2136,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     for (const scoreType of scoreTypes) {
       const totalCols = [
         { label: "Meilleur tour", value: p => p.bestScore },
-        { label: "Jours joues", value: p => getPlayedDaysCount(p), best: false },
+        { label: "Jours joues", value: p => getPlayedDaysCount(p), sortValue: p => getPlayedDaysCount(p), sortable: true, defaultSortDirection: "desc", best: false },
         ...(isFinaleFile && finaleHasBeenPlayed ? [{ label: "Finale", value: p => p.finalScore }] : []),
         { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
       ];
@@ -2189,7 +2263,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     for (const scoreType of scoreTypes) {
       const totalCols = [
         { label: "Meilleur tour", value: p => p.bestScore },
-        { label: "Jours joues", value: p => getPlayedDaysCount(p), best: false },
+        { label: "Jours joues", value: p => getPlayedDaysCount(p), sortValue: p => getPlayedDaysCount(p), sortable: true, defaultSortDirection: "desc", best: false },
         ...(isFinaleFile && finaleHasBeenPlayed ? [{ label: "Finale", value: p => p.finalScore }] : []),
         { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
       ];
