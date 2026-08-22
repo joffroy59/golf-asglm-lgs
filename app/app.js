@@ -1241,7 +1241,9 @@ function computeStatistics(standings) {
     cardsPerTour: {},
     uniquePlayerNames: new Set(),
     uniqueWomenNames: new Set(),
-    uniqueMenNames: new Set()
+    uniqueMenNames: new Set(),
+    uniquePlayerSeriesCombos: new Set(), // Track unique (playerName + seriesKey) to avoid double-counting NET/BRUT
+    tourCardsPerCombo: {} // Track (playerName + seriesKey) → Set of tours with scores
   };
 
   const TOUR_NAMES = ["T1", "T2", "T3", "T4", "T5", "T6"];
@@ -1289,20 +1291,36 @@ function computeStatistics(standings) {
 
         stats.playersBySeries[seriesKey].total++;
 
-        // Count cards played (each player record = one card)
-        stats.cardsByCategory[category]++;
-        stats.totalCards++;
-        stats.cardsBySeries[seriesKey]++;
+        // Track unique player-series combinations (avoid double-counting NET/BRUT)
+        const playerSeriesKey = `${player.name}|${seriesKey}`;
+        const isNewCombo = !stats.uniquePlayerSeriesCombos.has(playerSeriesKey);
+        if (isNewCombo) {
+          stats.uniquePlayerSeriesCombos.add(playerSeriesKey);
+          // Count cards played (one card per player-series combination, not per score type)
+          stats.cardsByCategory[category]++;
+          stats.totalCards++;
+          stats.cardsBySeries[seriesKey]++;
+          
+          // Initialize tour tracking for this combo
+          stats.tourCardsPerCombo[playerSeriesKey] = new Set();
+        }
 
-        // Count cards per tour
+        // Count cards per tour (track at combo level to avoid double-counting)
         if (player.tourScores && typeof player.tourScores === "object") {
           for (const tour of TOUR_NAMES) {
             if (player.tourScores[tour] !== undefined && player.tourScores[tour] !== null && player.tourScores[tour] !== "") {
-              stats.cardsPerTour[tour]++;
+              stats.tourCardsPerCombo[playerSeriesKey].add(tour);
             }
           }
         }
       }
+    }
+  }
+
+  // Calculate final cardsPerTour counts from unique combos
+  for (const tours of Object.values(stats.tourCardsPerCombo)) {
+    for (const tour of tours) {
+      stats.cardsPerTour[tour]++;
     }
   }
 
@@ -1339,7 +1357,7 @@ function renderStatistics(standings, fileName) {
     <div class="stat-card">
       <div class="stat-label">Cartes jouées</div>
       <div class="stat-value">${stats.totalCards}</div>
-      <div class="stat-description">Total des cartes (NET + BRUT)</div>
+      <div class="stat-description">Cartes uniques (NET et BRUT comptés une fois)</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Femmes</div>
