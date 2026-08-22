@@ -1609,7 +1609,17 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         row.appendChild(headerLabel);
 
         // Series chips under this header
-        let sib = h.nextElementSibling;
+        // Now that score-type-details wraps headers and series, we need to look inside the parent details element
+        let sib;
+        const scoreTypeDetailsParent = h.closest(".score-type-details");
+        if (scoreTypeDetailsParent) {
+          // If wrapped in score-type-details, find all series-group siblings within the same details
+          sib = scoreTypeDetailsParent.querySelector(".score-type-summary").nextElementSibling;
+        } else {
+          // Fallback to old behavior: look for next siblings of header
+          sib = h.nextElementSibling;
+        }
+         
         while (sib) {
           if (sib.classList && sib.classList.contains("score-type-header")) break;
           if (sib.classList && sib.classList.contains("cat-heading")) break;
@@ -1625,6 +1635,13 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
             a.textContent = title.textContent;
             a.addEventListener("click", e => {
               e.preventDefault();
+              // Ensure the series details element is open
+              const details = sg.querySelector(".series-details");
+              if (details) details.open = true;
+              // Also open parent score-type details if it exists
+              const scoreTypeDetails = sg.closest(".score-type-details");
+              if (scoreTypeDetails) scoreTypeDetails.open = true;
+              // Scroll to the series group
               sg.scrollIntoView({ behavior: "smooth", block: "start" });
             });
             row.appendChild(a);
@@ -1789,17 +1806,28 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     group.id = "sg-" + anchorBase;
 
+    // Create collapsible details wrapper
+    const details = document.createElement("details");
+    details.className = "series-details";
+    details.open = true;
+    group.appendChild(details);
+
+    // Create summary with title and file button
+    const summary = document.createElement("summary");
+    summary.className = "series-summary";
+    details.appendChild(summary);
+
     const titleRow = document.createElement("div");
-    titleRow.style.cssText = "display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem";
+    titleRow.style.cssText = "display:flex;align-items:center;gap:.5rem";
     const title = document.createElement("div");
     title.className = "series-title";
     title.textContent = compactSeriesLabel(seriesName);
     titleRow.appendChild(title);
     titleRow.appendChild(makeOpenFileBtn());
-    group.appendChild(titleRow);
+    summary.appendChild(titleRow);
 
-    // Add column header row
-    group.appendChild(makeColumnHeader(cols));
+    // Add column header row inside details
+    details.appendChild(makeColumnHeader(cols));
 
     // Calculate best score for each column
     const bestScores = {};
@@ -1818,7 +1846,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     const rankingGroup = combinedRankingGroup || players;
 
     players.forEach(player => {
-      group.appendChild(makePlayerRow(player, trueRank(player, rankingGroup), cols, bestScores));
+      details.appendChild(makePlayerRow(player, trueRank(player, rankingGroup), cols, bestScores));
     });
 
     // Back-to-top link
@@ -1839,7 +1867,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         });
       }
     });
-    group.appendChild(topLink);
+    details.appendChild(topLink);
 
     return group;
   }
@@ -1895,12 +1923,26 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       if (allGroupPlayers.length === 0) continue;
 
       if (!added) {
+        // Create details wrapper for score-type-header
+        const scoreDetails = document.createElement("details");
+        scoreDetails.className = "score-type-details";
+        scoreDetails.open = true;
+        
+        const scoreSummary = document.createElement("summary");
+        scoreSummary.className = "score-type-summary";
+        
         const h = document.createElement("div");
         h.className = "score-type-header";
         // Assign a stable anchor id from the label
         h.id = "section-" + label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
         h.textContent = label;
-        panel.appendChild(h);
+        
+        scoreSummary.appendChild(h);
+        scoreDetails.appendChild(scoreSummary);
+        panel.appendChild(scoreDetails);
+        
+        // Store reference to details so we can append series to it
+        panel._currentScoreTypeDetails = scoreDetails;
         added = true;
       }
 
@@ -1927,7 +1969,9 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
           top: seriesPlayers.map(p => ({ name: p.name, total: p.total }))
         });
 
-        panel.appendChild(makeSeriesGroup(seriesKey, seriesPlayers, cols, label, sortedGroup));
+        // Append series to the score-type details wrapper
+        const targetContainer = panel._currentScoreTypeDetails || panel;
+        targetContainer.appendChild(makeSeriesGroup(seriesKey, seriesPlayers, cols, label, sortedGroup));
       }
 
       processedSeries.add(sn);
