@@ -1625,6 +1625,13 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
             a.textContent = title.textContent;
             a.addEventListener("click", e => {
               e.preventDefault();
+              // Ensure the series details element is open
+              const details = sg.querySelector(".series-details");
+              if (details) details.open = true;
+              // Also open parent score-type details if it exists
+              const scoreTypeDetails = sg.closest(".score-type-details");
+              if (scoreTypeDetails) scoreTypeDetails.open = true;
+              // Scroll to the series group
               sg.scrollIntoView({ behavior: "smooth", block: "start" });
             });
             row.appendChild(a);
