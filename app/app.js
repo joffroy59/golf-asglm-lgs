@@ -1609,7 +1609,17 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         row.appendChild(headerLabel);
 
         // Series chips under this header
-        let sib = h.nextElementSibling;
+        // Now that score-type-details wraps headers and series, we need to look inside the parent details element
+        let sib;
+        const scoreTypeDetailsParent = h.closest(".score-type-details");
+        if (scoreTypeDetailsParent) {
+          // If wrapped in score-type-details, find all series-group siblings within the same details
+          sib = scoreTypeDetailsParent.querySelector(".score-type-summary").nextElementSibling;
+        } else {
+          // Fallback to old behavior: look for next siblings of header
+          sib = h.nextElementSibling;
+        }
+         
         while (sib) {
           if (sib.classList && sib.classList.contains("score-type-header")) break;
           if (sib.classList && sib.classList.contains("cat-heading")) break;
