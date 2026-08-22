@@ -1405,9 +1405,12 @@ function renderStatistics(standings, fileName) {
       ${
         Object.entries(stats.playersBySeries)
           .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([seriesKey, data]) => `
+          .map(([seriesKey, data]) => {
+            const numberMatch = String(seriesKey).match(/(\d+)/);
+            const formattedSeriesLabel = numberMatch ? `SÉRIE ${numberMatch[1]}` : seriesKey.toUpperCase();
+            return `
             <div>
-              <div style="font-weight: 600; margin-top: 0.5rem; margin-bottom: 0.3rem; color: var(--green);">${seriesKey.toUpperCase()}</div>
+              <div style="font-weight: 600; margin-top: 0.5rem; margin-bottom: 0.3rem; color: var(--green);">${formattedSeriesLabel}</div>
               <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
                 <span class="statistics-detail-label">Femmes</span>
                 <span class="statistics-detail-value">${data.women}</span>
@@ -1421,7 +1424,8 @@ function renderStatistics(standings, fileName) {
                 <span class="statistics-detail-value">${data.total}</span>
               </div>
             </div>
-          `).join("")
+           `;
+          }).join("")
       }
     </div>
   `;
