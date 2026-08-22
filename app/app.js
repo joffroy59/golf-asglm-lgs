@@ -1050,6 +1050,7 @@ async function refreshStandings() {
     };
     
     renderStandings(standings, fileInfo.name, isFinaleFile, finaleHasBeenPlayed, tourDateMap);
+    renderStatistics(standings, fileInfo.name);
   } catch (error) {
     elements.standingsStatus.textContent = "Erreur : Impossible de lire le fichier Excel. Verifiez qu'il n'est pas ouvert.";
     console.error(error);
@@ -1225,10 +1226,210 @@ function shareStandingsPanelToWhatsapp(panel, tabLabel, fileName) {
   }
 }
 
-function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false, tourDateMap = {}) {
-  elements.standingsContainer.innerHTML = "";
-  elements.standingsStatus.textContent = `Donnees de : ${fileName}`;
+function computeStatistics(standings) {
+  const stats = {
+    totalPlayers: 0,
+    totalCards: 0,
+    womenPlayers: 0,
+    menPlayers: 0,
+    playersByCategory: {},
+    cardsByCategory: {},
+    playersBySeries: {},
+    cardsBySeries: {},
+    cardsPerTour: {},
+    uniquePlayerNames: new Set(),
+    uniqueWomenNames: new Set(),
+    uniqueMenNames: new Set()
+  };
 
+  const TOUR_NAMES = ["T1", "T2", "T3", "T4", "T5", "T6"];
+
+  // Initialize tour counters
+  TOUR_NAMES.forEach(tour => {
+    stats.cardsPerTour[tour] = 0;
+  });
+
+  // Process each category (HOMME/DAME)
+  for (const [category, seriesData] of Object.entries(standings)) {
+    stats.playersByCategory[category] = 0;
+    stats.cardsByCategory[category] = 0;
+
+    if (!seriesData || Object.keys(seriesData).length === 0) continue;
+
+    // Process each series
+    for (const [seriesKey, players] of Object.entries(seriesData)) {
+      if (!stats.playersBySeries[seriesKey]) {
+        stats.playersBySeries[seriesKey] = { men: 0, women: 0, total: 0 };
+        stats.cardsBySeries[seriesKey] = 0;
+      }
+
+      if (!Array.isArray(players)) continue;
+
+      // Process each player
+      for (const player of players) {
+        if (!player.name || !player.name.trim()) continue;
+
+        // Count unique players by name
+        stats.uniquePlayerNames.add(player.name);
+
+        // Count by category
+        stats.playersByCategory[category]++;
+        stats.totalPlayers++;
+
+        // Count by gender (unique names only)
+        if (category === "DAME") {
+          stats.uniqueWomenNames.add(player.name);
+          stats.playersBySeries[seriesKey].women++;
+        } else if (category === "HOMME") {
+          stats.uniqueMenNames.add(player.name);
+          stats.playersBySeries[seriesKey].men++;
+        }
+
+        stats.playersBySeries[seriesKey].total++;
+
+        // Count cards played (each player record = one card)
+        stats.cardsByCategory[category]++;
+        stats.totalCards++;
+        stats.cardsBySeries[seriesKey]++;
+
+        // Count cards per tour
+        if (player.tourScores && typeof player.tourScores === "object") {
+          for (const tour of TOUR_NAMES) {
+            if (player.tourScores[tour] !== undefined && player.tourScores[tour] !== null && player.tourScores[tour] !== "") {
+              stats.cardsPerTour[tour]++;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Count unique players (one person might have multiple cards for NET/BRUT)
+  stats.uniquePlayers = stats.uniquePlayerNames.size;
+  stats.womenPlayers = stats.uniqueWomenNames.size;
+  stats.menPlayers = stats.uniqueMenNames.size;
+
+  return stats;
+}
+
+function renderStatistics(standings, fileName) {
+  const stats = computeStatistics(standings);
+  const container = document.getElementById("statistics-container");
+  const statusEl = document.getElementById("statistics-status");
+
+  if (!container) return;
+
+  container.innerHTML = "";
+  statusEl.textContent = `Données de : ${fileName}`;
+
+  if (stats.totalCards === 0) {
+    container.innerHTML = "<p style='color: #888; font-style: italic; padding: 1rem 0;'>Aucune donnée disponible.</p>";
+    return;
+  }
+
+  // Create main stat cards
+  const mainStatsHtml = `
+    <div class="stat-card">
+      <div class="stat-label">Joueurs différents</div>
+      <div class="stat-value">${stats.uniquePlayers}</div>
+      <div class="stat-description">Personnes inscrites à la compétition</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cartes jouées</div>
+      <div class="stat-value">${stats.totalCards}</div>
+      <div class="stat-description">Total des cartes (NET + BRUT)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Femmes</div>
+      <div class="stat-value">${stats.womenPlayers}</div>
+      <div class="stat-description">Joueuses inscrites</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Hommes</div>
+      <div class="stat-value">${stats.menPlayers}</div>
+      <div class="stat-description">Joueurs inscrits</div>
+    </div>
+  `;
+
+  const mainStatsDiv = document.createElement("div");
+  mainStatsDiv.className = "statistics-container";
+  mainStatsDiv.innerHTML = mainStatsHtml;
+  container.appendChild(mainStatsDiv);
+
+  // Create detailed breakdown section
+  const detailsDiv = document.createElement("div");
+  detailsDiv.className = "statistics-grid";
+
+  // Category breakdown
+  const categoryHtml = `
+    <div class="statistics-detail">
+      <div class="statistics-detail-title">Par catégorie</div>
+      ${
+        Object.entries(stats.playersByCategory)
+          .map(([cat, count]) => `
+            <div class="statistics-detail-row">
+              <div class="statistics-detail-label">${cat}</div>
+              <div class="statistics-detail-value">${count} <span style="font-size: 0.8rem; color: #888;">cartes</span></div>
+            </div>
+          `).join("")
+      }
+    </div>
+  `;
+
+  // Tour breakdown
+  const tourHtml = `
+    <div class="statistics-detail">
+      <div class="statistics-detail-title">Cartes par tour</div>
+      ${
+        Object.entries(stats.cardsPerTour)
+          .map(([tour, count]) => count > 0 ? `
+            <div class="statistics-detail-row">
+              <div class="statistics-detail-label">${tour}</div>
+              <div class="statistics-detail-value">${count}</div>
+            </div>
+          ` : "")
+          .join("")
+      }
+      ${Object.values(stats.cardsPerTour).every(c => c === 0) ? 
+        '<div style="padding: 0.5rem 0; color: #888; font-size: 0.8rem;">Pas de données de tour</div>' : 
+        ""}
+    </div>
+  `;
+
+  // Series breakdown
+  const seriesHtml = `
+    <div class="statistics-detail">
+      <div class="statistics-detail-title">Répartition par série</div>
+      ${
+        Object.entries(stats.playersBySeries)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([seriesKey, data]) => `
+            <div>
+              <div style="font-weight: 600; margin-top: 0.5rem; margin-bottom: 0.3rem; color: var(--green);">${seriesKey.toUpperCase()}</div>
+              <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
+                <span class="statistics-detail-label">Femmes</span>
+                <span class="statistics-detail-value">${data.women}</span>
+              </div>
+              <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
+                <span class="statistics-detail-label">Hommes</span>
+                <span class="statistics-detail-value">${data.men}</span>
+              </div>
+              <div class="statistics-detail-row" style="border: none; padding: 0.2rem 0; font-size: 0.75rem;">
+                <span class="statistics-detail-label">Total</span>
+                <span class="statistics-detail-value">${data.total}</span>
+              </div>
+            </div>
+          `).join("")
+      }
+    </div>
+  `;
+
+  detailsDiv.innerHTML = categoryHtml + tourHtml + seriesHtml;
+  container.appendChild(detailsDiv);
+}
+
+
+function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBeenPlayed = false, tourDateMap = {}) {
   console.log("renderStandings called, standings keys:", Object.keys(standings));
   for (const [cat, seriesData] of Object.entries(standings)) {
     const seriesKeys = Object.keys(seriesData);

@@ -66,12 +66,28 @@
       <section class="standings-panel">
         <div>
           <p class="eyebrow">CLASSEMENT EN COURS</p>
-          <h2>Resultats du jour</h2>
-          <p>Affiche les 10 meilleurs scores par serie selon le dernier fichier disponible.</p>
+          <div class="standings-header">
+            <details open>
+              <summary>
+                <h2>Resultats du jour</h2>
+              </summary>
+              <p>Affiche les 10 meilleurs scores par serie selon le dernier fichier disponible.</p>
+              <div id="standings-container" class="standings-container"></div>
+              <p id="standings-status" class="standings-status"></p>
+            </details>
+            <button class="button button-quiet" id="refresh-standings-button" type="button">Rafraîchir classement</button>
+          </div>
         </div>
-        <button class="button button-quiet" id="refresh-standings-button" type="button">Rafraîchir classement</button>
-        <div id="standings-container" class="standings-container"></div>
-        <p id="standings-status" class="standings-status"></p>
+      </section>
+
+      <section class="statistics-panel" aria-labelledby="statistics-title">
+        <div>
+          <p class="eyebrow">STATISTIQUES DE COMPETITION</p>
+          <h2 id="statistics-title">Analyse des participations</h2>
+          <p>Apercu des joueurs inscrits et des cartes jouees selon le dernier fichier.</p>
+        </div>
+        <div id="statistics-container" class="statistics-container"></div>
+        <p id="statistics-status" class="statistics-status"></p>
       </section>
 
       <section class="notes-panel">
