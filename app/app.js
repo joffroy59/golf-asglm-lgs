@@ -1851,7 +1851,9 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       details.appendChild(makePlayerRow(player, trueRank(player, rankingGroup), cols, bestScores));
     });
 
-    // Back-to-top link
+    // Back-to-top link + local collapse/expand controls
+    const topLinkRow = document.createElement("div");
+    topLinkRow.className = "back-to-top-row";
     const topLink = document.createElement("a");
     topLink.className = "back-to-top";
     topLink.href = "#";
@@ -1869,7 +1871,31 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         });
       }
     });
-    details.appendChild(topLink);
+    topLinkRow.appendChild(topLink);
+
+    const collapseBtn = document.createElement("button");
+    collapseBtn.type = "button";
+    collapseBtn.className = "back-to-top-toggle";
+    collapseBtn.textContent = "−";
+    collapseBtn.title = "Réduire cette série";
+    collapseBtn.setAttribute("aria-label", "Réduire cette série");
+    collapseBtn.addEventListener("click", () => {
+      details.open = false;
+    });
+    topLinkRow.appendChild(collapseBtn);
+
+    const expandBtn = document.createElement("button");
+    expandBtn.type = "button";
+    expandBtn.className = "back-to-top-toggle";
+    expandBtn.textContent = "+";
+    expandBtn.title = "Agrandir cette série";
+    expandBtn.setAttribute("aria-label", "Agrandir cette série");
+    expandBtn.addEventListener("click", () => {
+      details.open = true;
+    });
+    topLinkRow.appendChild(expandBtn);
+
+    details.appendChild(topLinkRow);
 
     return group;
   }
