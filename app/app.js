@@ -39,10 +39,59 @@ const elements = {
   deleteSeasonButton: document.querySelector("#delete-season-button"),
   standingsContainer: document.querySelector("#standings-container"),
   standingsStatus: document.querySelector("#standings-status"),
+  standingsSourceInfo: document.querySelector("#standings-source-info"),
+  statisticsSourceInfo: document.querySelector("#statistics-source-info"),
   refreshStandingsButton: document.querySelector("#refresh-standings-button"),
   collapseAllButton: document.querySelector("#collapse-all-button"),
   expandAllButton: document.querySelector("#expand-all-button")
 };
+
+function currentSourceRootLabel(season) {
+  if (!season) return "";
+  return season.sourceMode === SOURCE_MODES.dropbox
+    ? `Dropbox : ${ensureDropboxPath(season.dropboxPath, season.year)}`
+    : season.directory;
+}
+
+function sanitizeStoredSourcePath(path) {
+  return String(path || "")
+    .trim()
+    .replace(/^Dossier\s+lie\s*:\s*/i, "")
+    .replace(/^Dropbox\s*:\s*/i, "");
+}
+
+function toAbsoluteLocalFileUri(path) {
+  const normalized = String(path || "").trim().replace(/\\/g, "/");
+  if (!normalized) return "file:///";
+  if (/^file:\/\//i.test(normalized)) return normalized;
+  if (/^[A-Za-z]:\//.test(normalized)) return `file:///${normalized}`;
+  if (normalized.startsWith("/")) return `file://${normalized}`;
+  try {
+    return new URL(normalized, window.location.href).href;
+  } catch (_) {
+    return `file:///${normalized.replace(/^\/+/, "")}`;
+  }
+}
+
+function formatUsedFolderUri(season, fileInfo) {
+  const folderPath = formatUsedFolderLabel(season, fileInfo);
+  if (season?.sourceMode === SOURCE_MODES.dropbox) {
+    const cleanPath = sanitizeStoredSourcePath(folderPath);
+    return `dropbox://${cleanPath}`;
+  }
+  return toAbsoluteLocalFileUri(sanitizeStoredSourcePath(folderPath));
+}
+
+function formatUsedFolderLabel(season, fileInfo) {
+  if (season?.sourceMode === SOURCE_MODES.dropbox) {
+    const root = ensureDropboxPath(season.dropboxPath, season.year);
+    if (!fileInfo?.folder || fileInfo.folder === "root") return root;
+    return `${root}/${fileInfo.folder}`;
+  }
+  const localRoot = sanitizeStoredSourcePath(season?.directory || "");
+  if (!fileInfo?.folder || fileInfo.folder === "root") return localRoot;
+  return `${localRoot}\\${fileInfo.folder}`;
+}
 
 function makeSeason(year, directory) {
   const seasonYear = Number(year);
@@ -271,6 +320,12 @@ function render() {
   elements.linkFolderButton.title = isDropboxMode
     ? "Connecter puis analyser le dossier Dropbox de cette saison."
     : "Lier le dossier LGS local pour analyser les fichiers.";
+  const sourceRoot = currentSourceRootLabel(season);
+  if (elements.standingsSourceInfo) {
+    elements.standingsSourceInfo.textContent = `Dossier utilise : ${formatUsedFolderUri(season)}`;
+    elements.standingsSourceInfo.title = sourceRoot;
+  }
+  if (elements.statisticsSourceInfo) elements.statisticsSourceInfo.textContent = `Dossier utilise : ${formatUsedFolderUri(season)}`;
   elements.scanResult.textContent = season.sourceMessage
     || season.catalogMessage
     || (season.lastScan
@@ -632,7 +687,6 @@ async function linkSeasonFolder() {
         else if (tour.status === "planned") tour.status = "ready";
       }
     }
-    season.directory = `Dossier lie : ${root.name}`;
     season.lastScan = new Date().toISOString();
     season.sourceMessage = "";
     season.catalogMessage = "";
@@ -1051,6 +1105,15 @@ async function refreshStandings() {
       name: fileInfo.name
     };
 
+    const selectedFolder = formatUsedFolderLabel(season, fileInfo);
+    if (elements.standingsSourceInfo) {
+      elements.standingsSourceInfo.textContent = `Dossier utilise : ${formatUsedFolderUri(season, fileInfo)}`;
+      elements.standingsSourceInfo.title = selectedFolder;
+    }
+    if (elements.statisticsSourceInfo) {
+      elements.statisticsSourceInfo.textContent = `Dossier utilise : ${formatUsedFolderUri(season, fileInfo)}`;
+    }
+
     renderStandings(standings, fileInfo.name, isFinaleFile, finaleHasBeenPlayed, tourDateMap);
     renderStatistics(standings, fileInfo.name, tourDateMap);
   } catch (error) {
@@ -1239,6 +1302,8 @@ function computeStatistics(standings) {
     playersBySeries: {},
     cardsBySeries: {},
     cardsPerTour: {},
+    daysPlayedRanking: [],
+    daysPlayedBySeriesSex: {},
     uniquePlayerNames: new Set(),
     uniqueWomenNames: new Set(),
     uniqueMenNames: new Set()
@@ -1324,6 +1389,48 @@ function computeStatistics(standings) {
     }
   }
 
+  // Build ranking of days played per player (unique tours, NET/BRUT merged)
+  const playerTours = new Map(); // key: player name -> Set of tours played
+  for (const [comboKey, combo] of comboStats.entries()) {
+    const [playerName] = comboKey.split("|");
+    if (!playerTours.has(playerName)) playerTours.set(playerName, new Set());
+    const toursSet = playerTours.get(playerName);
+    for (const tour of combo.tours) toursSet.add(tour);
+  }
+  stats.daysPlayedRanking = [...playerTours.entries()]
+    .map(([name, tours]) => ({ name, days: tours.size }))
+    .sort((a, b) => {
+      const d = b.days - a.days;
+      return d !== 0 ? d : a.name.localeCompare(b.name);
+    });
+
+  // Build ranking of days played by series and sex (NET/BRUT merged)
+  const bySeriesSex = new Map(); // key: series|category -> Map(playerName -> days)
+  for (const [comboKey, combo] of comboStats.entries()) {
+    const [playerName] = comboKey.split("|");
+    const mapKey = `${combo.seriesKey}|${combo.category}`;
+    if (!bySeriesSex.has(mapKey)) bySeriesSex.set(mapKey, new Map());
+    bySeriesSex.get(mapKey).set(playerName, combo.tours.size);
+  }
+
+  const seriesKeys = [...new Set([...comboStats.values()].map(c => c.seriesKey))]
+    .sort((a, b) => String(a).localeCompare(String(b)));
+  for (const seriesKey of seriesKeys) {
+    const seriesLabelMatch = String(seriesKey).match(/(\d+)/);
+    const seriesLabel = seriesLabelMatch ? `SÉRIE ${seriesLabelMatch[1]}` : String(seriesKey).toUpperCase();
+    stats.daysPlayedBySeriesSex[seriesLabel] = {};
+    for (const category of ["HOMME", "DAME"]) {
+      const mapKey = `${seriesKey}|${category}`;
+      const playerMap = bySeriesSex.get(mapKey) || new Map();
+      stats.daysPlayedBySeriesSex[seriesLabel][category] = [...playerMap.entries()]
+        .map(([name, days]) => ({ name, days }))
+        .sort((a, b) => {
+          const d = b.days - a.days;
+          return d !== 0 ? d : a.name.localeCompare(b.name);
+        });
+    }
+  }
+
   // Count unique players (one person might have multiple cards for NET/BRUT)
   stats.uniquePlayers = stats.uniquePlayerNames.size;
   stats.womenPlayers = stats.uniqueWomenNames.size;
@@ -1335,16 +1442,69 @@ function computeStatistics(standings) {
 function renderStatistics(standings, fileName, tourDateMap = {}) {
   const stats = computeStatistics(standings);
   const container = document.getElementById("statistics-container");
+  const daysPlayedContainer = document.getElementById("days-played-ranking-container");
   const statusEl = document.getElementById("statistics-status");
 
-  if (!container) return;
+  if (!container && !daysPlayedContainer) return;
 
-  container.innerHTML = "";
+  if (container) container.innerHTML = "";
+  if (daysPlayedContainer) daysPlayedContainer.innerHTML = "";
   statusEl.textContent = `Données de : ${fileName}`;
 
   if (stats.totalCards === 0) {
-    container.innerHTML = "<p style='color: #888; font-style: italic; padding: 1rem 0;'>Aucune donnée disponible.</p>";
+    if (container) {
+      container.innerHTML = "<p style='color: #888; font-style: italic; padding: 1rem 0;'>Aucune donnée disponible.</p>";
+    }
+    if (daysPlayedContainer) {
+      daysPlayedContainer.innerHTML = "<p style='color: #888; font-style: italic; padding: 1rem 0;'>Aucune donnée disponible.</p>";
+    }
     return;
+  }
+
+  function colorMapForDays(entries) {
+    const palette = ["#174f42", "#2f6f62", "#4f9184", "#73b2a4", "#9bcfc2", "#c4e4dc"];
+    const uniqueDays = [...new Set(entries.map(e => e.days))].sort((a, b) => b - a);
+    const map = new Map();
+    uniqueDays.forEach((days, i) => map.set(days, palette[i % palette.length]));
+    return map;
+  }
+
+  let daysListCounter = 0;
+  function buildDaysRankingRows(entries, rowStyle = "", defaultLimit = 15) {
+    const colorMap = colorMapForDays(entries);
+    const dayEmojiMap = new Map();
+    const uniqueDaysByRank = [...new Set(entries.map(e => e.days))];
+    uniqueDaysByRank.forEach((days, i) => {
+      if (i === 0) dayEmojiMap.set(days, "🥇");
+      else if (i === 1) dayEmojiMap.set(days, "🥈");
+      else if (i === 2) dayEmojiMap.set(days, "🥉");
+      else dayEmojiMap.set(days, "🏅");
+    });
+    const listId = `days-list-${daysListCounter++}`;
+    const rowsHtml = entries.map((entry, index) => {
+      const bg = colorMap.get(entry.days) || "#174f42";
+      const hiddenClass = index >= defaultLimit ? " is-hidden" : "";
+      const rankEmoji = dayEmojiMap.get(entry.days) || "";
+      return `
+        <div class="statistics-detail-row days-played-row${hiddenClass}" data-list-id="${listId}" data-rank-index="${index}" ${rowStyle ? `style="${rowStyle}"` : ""}>
+          <div class="statistics-detail-label">${rankEmoji ? `${rankEmoji} ` : ""}${index + 1}. ${entry.name}</div>
+          <div class="statistics-detail-value">
+            <span class="days-played-badge" style="background:${bg};">${entry.days}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    if (entries.length <= defaultLimit) return rowsHtml;
+
+    return `
+      ${rowsHtml}
+      <div class="days-played-toggle-wrap">
+        <button type="button" class="days-played-toggle-btn" data-list-id="${listId}" data-expanded="false" data-limit="${defaultLimit}" data-total="${entries.length}">
+          Afficher tout (${entries.length})
+        </button>
+      </div>
+    `;
   }
 
   // Create main stat cards
@@ -1373,7 +1533,7 @@ function renderStatistics(standings, fileName, tourDateMap = {}) {
   const mainStatsDiv = document.createElement("div");
   mainStatsDiv.className = "statistics-container";
   mainStatsDiv.innerHTML = mainStatsHtml;
-  container.appendChild(mainStatsDiv);
+  if (container) container.appendChild(mainStatsDiv);
 
   // Create detailed breakdown section
   const detailsDiv = document.createElement("div");
@@ -1448,7 +1608,68 @@ function renderStatistics(standings, fileName, tourDateMap = {}) {
   `;
 
   detailsDiv.innerHTML = categoryHtml + tourHtml + seriesHtml;
-  container.appendChild(detailsDiv);
+  if (container) container.appendChild(detailsDiv);
+
+  if (daysPlayedContainer) {
+    const globalDetails = document.createElement("details");
+    globalDetails.className = "statistics-detail";
+    globalDetails.open = true;
+    globalDetails.innerHTML = `
+      <summary class="statistics-detail-title" style="cursor:pointer; margin-bottom:0;">TOTAL</summary>
+      ${
+        stats.daysPlayedRanking.length > 0
+          ? buildDaysRankingRows(stats.daysPlayedRanking)
+          : '<div style="padding: 0.5rem 0; color: #888; font-size: 0.8rem;">Pas de données</div>'
+      }
+    `;
+    daysPlayedContainer.appendChild(globalDetails);
+    const seriesRow = document.createElement("div");
+    seriesRow.className = "days-played-series-row";
+    daysPlayedContainer.appendChild(seriesRow);
+
+    Object.entries(stats.daysPlayedBySeriesSex).forEach(([seriesLabel, bySex]) => {
+      const seriesCard = document.createElement("details");
+      seriesCard.className = "statistics-detail";
+      seriesCard.open = true;
+      const sexBlocks = ["HOMME", "DAME"].map((sex) => {
+        const ranking = bySex[sex] || [];
+        const rows = ranking.length
+          ? buildDaysRankingRows(ranking, "font-size:0.75rem; padding:0.25rem 0;")
+          : '<div style="padding: 0.25rem 0; color: #888; font-size: 0.75rem;">Pas de données</div>';
+        return `
+          <div style="margin-top:0.4rem;">
+            <div class="statistics-detail-title" style="margin-bottom:0.25rem;">${sex}</div>
+            ${rows}
+          </div>
+        `;
+      }).join("");
+
+      seriesCard.innerHTML = `
+        <summary class="statistics-detail-title" style="cursor:pointer; margin-bottom:0;">${seriesLabel}</summary>
+        ${sexBlocks}
+      `;
+      seriesRow.appendChild(seriesCard);
+    });
+
+    daysPlayedContainer.querySelectorAll(".days-played-toggle-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const listId = btn.dataset.listId;
+        const limit = Number(btn.dataset.limit || "15");
+        const total = Number(btn.dataset.total || "0");
+        const expanded = btn.dataset.expanded === "true";
+        const rows = daysPlayedContainer.querySelectorAll(`.days-played-row[data-list-id="${listId}"]`);
+
+        rows.forEach((row) => {
+          const rankIndex = Number(row.dataset.rankIndex || "0");
+          if (expanded && rankIndex >= limit) row.classList.add("is-hidden");
+          else row.classList.remove("is-hidden");
+        });
+
+        btn.dataset.expanded = expanded ? "false" : "true";
+        btn.textContent = expanded ? `Afficher tout (${total})` : `Top ${limit}`;
+      });
+    });
+  }
 }
 
 
@@ -1804,6 +2025,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     const header = document.createElement("div");
     header.className = "column-header";
     header.style.gridTemplateColumns = `2rem 1.5fr ${cols.map(() => "1fr").join(" ")}`;
+    const colHeaderCells = [];
 
     // Rank column header (empty)
     const rankHeader = document.createElement("div");
@@ -1821,8 +2043,9 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       cell.className = "header-cell";
       cell.textContent = col.label;
       header.appendChild(cell);
+      colHeaderCells.push(cell);
     }
-    return header;
+    return { header, colHeaderCells };
   }
 
   function compactSeriesLabel(seriesName) {
@@ -1861,7 +2084,8 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     summary.appendChild(titleRow);
 
     // Add column header row inside details
-    details.appendChild(makeColumnHeader(cols));
+    const { header: columnHeader, colHeaderCells } = makeColumnHeader(cols);
+    details.appendChild(columnHeader);
 
     // Calculate best score for each column
     const bestScores = {};
@@ -1879,10 +2103,81 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
 
     // Use combinedRankingGroup for ranking if provided (for series 3-4), otherwise use current series players
     const rankingGroup = combinedRankingGroup || players;
+    const basePlayers = [...players];
+    const rowsContainer = document.createElement("div");
+    details.appendChild(rowsContainer);
+    const sortState = { colIndex: null, direction: null };
 
-    players.forEach(player => {
-      details.appendChild(makePlayerRow(player, trueRank(player, rankingGroup), cols, bestScores));
+    function parseSortableValue(raw) {
+      if (typeof raw === "number") return raw;
+      const str = String(raw ?? "").trim();
+      if (!str) return Number.POSITIVE_INFINITY;
+      const num = Number.parseFloat(str.replace(",", "."));
+      return Number.isNaN(num) ? str.toLowerCase() : num;
+    }
+
+    function getSortedPlayers() {
+      if (sortState.colIndex === null) return [...basePlayers];
+
+      const col = cols[sortState.colIndex];
+      const dir = sortState.direction === "asc" ? 1 : -1;
+      return [...basePlayers].sort((a, b) => {
+        const av = parseSortableValue(col.sortValue ? col.sortValue(a) : col.value(a));
+        const bv = parseSortableValue(col.sortValue ? col.sortValue(b) : col.value(b));
+
+        if (typeof av === "number" && typeof bv === "number") {
+          const d = (av - bv) * dir;
+          if (d !== 0) return d;
+        } else {
+          const d = String(av).localeCompare(String(bv)) * dir;
+          if (d !== 0) return d;
+        }
+        const byTotal = a.total - b.total;
+        return byTotal !== 0 ? byTotal : a.name.localeCompare(b.name);
+      });
+    }
+
+    function updateSortHeaders() {
+      cols.forEach((col, colIndex) => {
+        const cell = colHeaderCells[colIndex];
+        if (!col.sortable) {
+          cell.textContent = col.label;
+          return;
+        }
+        cell.style.cursor = "pointer";
+        if (sortState.colIndex === colIndex) {
+          cell.textContent = `${col.label} ${sortState.direction === "asc" ? "▲" : "▼"}`;
+        } else {
+          cell.textContent = `${col.label} ⇅`;
+        }
+      });
+    }
+
+    function renderRows() {
+      rowsContainer.innerHTML = "";
+      const rows = getSortedPlayers();
+      rows.forEach(player => {
+        rowsContainer.appendChild(makePlayerRow(player, trueRank(player, rankingGroup), cols, bestScores));
+      });
+    }
+
+    cols.forEach((col, colIndex) => {
+      if (!col.sortable) return;
+      const cell = colHeaderCells[colIndex];
+      cell.addEventListener("click", () => {
+        if (sortState.colIndex !== colIndex) {
+          sortState.colIndex = colIndex;
+          sortState.direction = col.defaultSortDirection || "desc";
+        } else {
+          sortState.direction = sortState.direction === "desc" ? "asc" : "desc";
+        }
+        updateSortHeaders();
+        renderRows();
+      });
     });
+
+    updateSortHeaders();
+    renderRows();
 
     // Back-to-top link + local collapse/expand controls
     const topLinkRow = document.createElement("div");
@@ -2062,7 +2357,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     for (const scoreType of scoreTypes) {
       const totalCols = [
         { label: "Meilleur tour", value: p => p.bestScore },
-        { label: "Jours joues", value: p => getPlayedDaysCount(p), best: false },
+        { label: "Jours joues", value: p => getPlayedDaysCount(p), sortValue: p => getPlayedDaysCount(p), sortable: true, defaultSortDirection: "desc", best: false },
         ...(isFinaleFile && finaleHasBeenPlayed ? [{ label: "Finale", value: p => p.finalScore }] : []),
         { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
       ];
@@ -2189,7 +2484,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     for (const scoreType of scoreTypes) {
       const totalCols = [
         { label: "Meilleur tour", value: p => p.bestScore },
-        { label: "Jours joues", value: p => getPlayedDaysCount(p), best: false },
+        { label: "Jours joues", value: p => getPlayedDaysCount(p), sortValue: p => getPlayedDaysCount(p), sortable: true, defaultSortDirection: "desc", best: false },
         ...(isFinaleFile && finaleHasBeenPlayed ? [{ label: "Finale", value: p => p.finalScore }] : []),
         { label: "Total LGS", value: p => p.inProgress ? `${p.totalScore} ⏳` : p.totalScore, bold: true }
       ];
