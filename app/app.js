@@ -53,26 +53,44 @@ function currentSourceRootLabel(season) {
     : season.directory;
 }
 
-function compactFolderName(path) {
-  const parts = String(path || "").split(/[\\/]+/).filter(Boolean);
-  return parts[parts.length - 1] || String(path || "");
+function sanitizeStoredSourcePath(path) {
+  return String(path || "")
+    .trim()
+    .replace(/^Dossier\s+lie\s*:\s*/i, "")
+    .replace(/^Dropbox\s*:\s*/i, "");
 }
 
-function compactUsedFolderLabel(season, fileInfo = null) {
-  const sourceRoot = currentSourceRootLabel(season);
-  const sourceFolder = season?.sourceMode === SOURCE_MODES.dropbox
-    ? compactFolderName(ensureDropboxPath(season.dropboxPath, season.year))
-    : compactFolderName(sourceRoot);
-  const tourSuffix = fileInfo?.folder && fileInfo.folder !== "root" ? `\\${fileInfo.folder}` : "";
-  return `Dossier lie : ${sourceFolder}${tourSuffix}`;
+function toAbsoluteLocalFileUri(path) {
+  const normalized = String(path || "").trim().replace(/\\/g, "/");
+  if (!normalized) return "file:///";
+  if (/^file:\/\//i.test(normalized)) return normalized;
+  if (/^[A-Za-z]:\//.test(normalized)) return `file:///${normalized}`;
+  if (normalized.startsWith("/")) return `file://${normalized}`;
+  try {
+    return new URL(normalized, window.location.href).href;
+  } catch (_) {
+    return `file:///${normalized.replace(/^\/+/, "")}`;
+  }
+}
+
+function formatUsedFolderUri(season, fileInfo) {
+  const folderPath = formatUsedFolderLabel(season, fileInfo);
+  if (season?.sourceMode === SOURCE_MODES.dropbox) {
+    const cleanPath = sanitizeStoredSourcePath(folderPath);
+    return `dropbox://${cleanPath}`;
+  }
+  return toAbsoluteLocalFileUri(sanitizeStoredSourcePath(folderPath));
 }
 
 function formatUsedFolderLabel(season, fileInfo) {
-  const sourceRoot = currentSourceRootLabel(season);
-  if (!fileInfo?.folder || fileInfo.folder === "root") return sourceRoot;
-  return season.sourceMode === SOURCE_MODES.dropbox
-    ? `${sourceRoot}/${fileInfo.folder}`
-    : `${sourceRoot}\\${fileInfo.folder}`;
+  if (season?.sourceMode === SOURCE_MODES.dropbox) {
+    const root = ensureDropboxPath(season.dropboxPath, season.year);
+    if (!fileInfo?.folder || fileInfo.folder === "root") return root;
+    return `${root}/${fileInfo.folder}`;
+  }
+  const localRoot = sanitizeStoredSourcePath(season?.directory || "");
+  if (!fileInfo?.folder || fileInfo.folder === "root") return localRoot;
+  return `${localRoot}\\${fileInfo.folder}`;
 }
 
 function makeSeason(year, directory) {
@@ -304,10 +322,10 @@ function render() {
     : "Lier le dossier LGS local pour analyser les fichiers.";
   const sourceRoot = currentSourceRootLabel(season);
   if (elements.standingsSourceInfo) {
-    elements.standingsSourceInfo.textContent = `Dossier utilise : ${compactUsedFolderLabel(season)}`;
+    elements.standingsSourceInfo.textContent = `Dossier utilise : ${formatUsedFolderUri(season)}`;
     elements.standingsSourceInfo.title = sourceRoot;
   }
-  if (elements.statisticsSourceInfo) elements.statisticsSourceInfo.textContent = `Dossier utilise : ${sourceRoot}`;
+  if (elements.statisticsSourceInfo) elements.statisticsSourceInfo.textContent = `Dossier utilise : ${formatUsedFolderUri(season)}`;
   elements.scanResult.textContent = season.sourceMessage
     || season.catalogMessage
     || (season.lastScan
@@ -669,7 +687,6 @@ async function linkSeasonFolder() {
         else if (tour.status === "planned") tour.status = "ready";
       }
     }
-    season.directory = `Dossier lie : ${root.name}`;
     season.lastScan = new Date().toISOString();
     season.sourceMessage = "";
     season.catalogMessage = "";
@@ -1090,11 +1107,11 @@ async function refreshStandings() {
 
     const selectedFolder = formatUsedFolderLabel(season, fileInfo);
     if (elements.standingsSourceInfo) {
-      elements.standingsSourceInfo.textContent = `Dossier utilise : ${compactUsedFolderLabel(season, fileInfo)}`;
+      elements.standingsSourceInfo.textContent = `Dossier utilise : ${formatUsedFolderUri(season, fileInfo)}`;
       elements.standingsSourceInfo.title = selectedFolder;
     }
     if (elements.statisticsSourceInfo) {
-      elements.statisticsSourceInfo.textContent = `Dossier utilise : ${selectedFolder}`;
+      elements.statisticsSourceInfo.textContent = `Dossier utilise : ${formatUsedFolderUri(season, fileInfo)}`;
     }
 
     renderStandings(standings, fileInfo.name, isFinaleFile, finaleHasBeenPlayed, tourDateMap);
@@ -1286,6 +1303,7 @@ function computeStatistics(standings) {
     cardsBySeries: {},
     cardsPerTour: {},
     daysPlayedRanking: [],
+    daysPlayedBySeriesSex: {},
     uniquePlayerNames: new Set(),
     uniqueWomenNames: new Set(),
     uniqueMenNames: new Set()
@@ -1386,6 +1404,33 @@ function computeStatistics(standings) {
       return d !== 0 ? d : a.name.localeCompare(b.name);
     });
 
+  // Build ranking of days played by series and sex (NET/BRUT merged)
+  const bySeriesSex = new Map(); // key: series|category -> Map(playerName -> days)
+  for (const [comboKey, combo] of comboStats.entries()) {
+    const [playerName] = comboKey.split("|");
+    const mapKey = `${combo.seriesKey}|${combo.category}`;
+    if (!bySeriesSex.has(mapKey)) bySeriesSex.set(mapKey, new Map());
+    bySeriesSex.get(mapKey).set(playerName, combo.tours.size);
+  }
+
+  const seriesKeys = [...new Set([...comboStats.values()].map(c => c.seriesKey))]
+    .sort((a, b) => String(a).localeCompare(String(b)));
+  for (const seriesKey of seriesKeys) {
+    const seriesLabelMatch = String(seriesKey).match(/(\d+)/);
+    const seriesLabel = seriesLabelMatch ? `SÉRIE ${seriesLabelMatch[1]}` : String(seriesKey).toUpperCase();
+    stats.daysPlayedBySeriesSex[seriesLabel] = {};
+    for (const category of ["HOMME", "DAME"]) {
+      const mapKey = `${seriesKey}|${category}`;
+      const playerMap = bySeriesSex.get(mapKey) || new Map();
+      stats.daysPlayedBySeriesSex[seriesLabel][category] = [...playerMap.entries()]
+        .map(([name, days]) => ({ name, days }))
+        .sort((a, b) => {
+          const d = b.days - a.days;
+          return d !== 0 ? d : a.name.localeCompare(b.name);
+        });
+    }
+  }
+
   // Count unique players (one person might have multiple cards for NET/BRUT)
   stats.uniquePlayers = stats.uniquePlayerNames.size;
   stats.womenPlayers = stats.uniqueWomenNames.size;
@@ -1414,6 +1459,52 @@ function renderStatistics(standings, fileName, tourDateMap = {}) {
       daysPlayedContainer.innerHTML = "<p style='color: #888; font-style: italic; padding: 1rem 0;'>Aucune donnée disponible.</p>";
     }
     return;
+  }
+
+  function colorMapForDays(entries) {
+    const palette = ["#174f42", "#2f6f62", "#4f9184", "#73b2a4", "#9bcfc2", "#c4e4dc"];
+    const uniqueDays = [...new Set(entries.map(e => e.days))].sort((a, b) => b - a);
+    const map = new Map();
+    uniqueDays.forEach((days, i) => map.set(days, palette[i % palette.length]));
+    return map;
+  }
+
+  let daysListCounter = 0;
+  function buildDaysRankingRows(entries, rowStyle = "", defaultLimit = 15) {
+    const colorMap = colorMapForDays(entries);
+    const dayEmojiMap = new Map();
+    const uniqueDaysByRank = [...new Set(entries.map(e => e.days))];
+    uniqueDaysByRank.forEach((days, i) => {
+      if (i === 0) dayEmojiMap.set(days, "🥇");
+      else if (i === 1) dayEmojiMap.set(days, "🥈");
+      else if (i === 2) dayEmojiMap.set(days, "🥉");
+      else dayEmojiMap.set(days, "🏅");
+    });
+    const listId = `days-list-${daysListCounter++}`;
+    const rowsHtml = entries.map((entry, index) => {
+      const bg = colorMap.get(entry.days) || "#174f42";
+      const hiddenClass = index >= defaultLimit ? " is-hidden" : "";
+      const rankEmoji = dayEmojiMap.get(entry.days) || "";
+      return `
+        <div class="statistics-detail-row days-played-row${hiddenClass}" data-list-id="${listId}" data-rank-index="${index}" ${rowStyle ? `style="${rowStyle}"` : ""}>
+          <div class="statistics-detail-label">${rankEmoji ? `${rankEmoji} ` : ""}${index + 1}. ${entry.name}</div>
+          <div class="statistics-detail-value">
+            <span class="days-played-badge" style="background:${bg};">${entry.days}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    if (entries.length <= defaultLimit) return rowsHtml;
+
+    return `
+      ${rowsHtml}
+      <div class="days-played-toggle-wrap">
+        <button type="button" class="days-played-toggle-btn" data-list-id="${listId}" data-expanded="false" data-limit="${defaultLimit}" data-total="${entries.length}">
+          Afficher tout (${entries.length})
+        </button>
+      </div>
+    `;
   }
 
   // Create main stat cards
@@ -1520,22 +1611,64 @@ function renderStatistics(standings, fileName, tourDateMap = {}) {
   if (container) container.appendChild(detailsDiv);
 
   if (daysPlayedContainer) {
-    const rankingCard = document.createElement("div");
-    rankingCard.className = "statistics-detail";
-    rankingCard.innerHTML = `
-      <div class="statistics-detail-title">Classement global</div>
+    const globalDetails = document.createElement("details");
+    globalDetails.className = "statistics-detail";
+    globalDetails.open = true;
+    globalDetails.innerHTML = `
+      <summary class="statistics-detail-title" style="cursor:pointer; margin-bottom:0;">TOTAL</summary>
       ${
         stats.daysPlayedRanking.length > 0
-          ? stats.daysPlayedRanking.map((entry, index) => `
-              <div class="statistics-detail-row">
-                <div class="statistics-detail-label">${index + 1}. ${entry.name}</div>
-                <div class="statistics-detail-value">${entry.days}</div>
-              </div>
-            `).join("")
+          ? buildDaysRankingRows(stats.daysPlayedRanking)
           : '<div style="padding: 0.5rem 0; color: #888; font-size: 0.8rem;">Pas de données</div>'
       }
     `;
-    daysPlayedContainer.appendChild(rankingCard);
+    daysPlayedContainer.appendChild(globalDetails);
+    const seriesRow = document.createElement("div");
+    seriesRow.className = "days-played-series-row";
+    daysPlayedContainer.appendChild(seriesRow);
+
+    Object.entries(stats.daysPlayedBySeriesSex).forEach(([seriesLabel, bySex]) => {
+      const seriesCard = document.createElement("details");
+      seriesCard.className = "statistics-detail";
+      seriesCard.open = true;
+      const sexBlocks = ["HOMME", "DAME"].map((sex) => {
+        const ranking = bySex[sex] || [];
+        const rows = ranking.length
+          ? buildDaysRankingRows(ranking, "font-size:0.75rem; padding:0.25rem 0;")
+          : '<div style="padding: 0.25rem 0; color: #888; font-size: 0.75rem;">Pas de données</div>';
+        return `
+          <div style="margin-top:0.4rem;">
+            <div class="statistics-detail-title" style="margin-bottom:0.25rem;">${sex}</div>
+            ${rows}
+          </div>
+        `;
+      }).join("");
+
+      seriesCard.innerHTML = `
+        <summary class="statistics-detail-title" style="cursor:pointer; margin-bottom:0;">${seriesLabel}</summary>
+        ${sexBlocks}
+      `;
+      seriesRow.appendChild(seriesCard);
+    });
+
+    daysPlayedContainer.querySelectorAll(".days-played-toggle-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const listId = btn.dataset.listId;
+        const limit = Number(btn.dataset.limit || "15");
+        const total = Number(btn.dataset.total || "0");
+        const expanded = btn.dataset.expanded === "true";
+        const rows = daysPlayedContainer.querySelectorAll(`.days-played-row[data-list-id="${listId}"]`);
+
+        rows.forEach((row) => {
+          const rankIndex = Number(row.dataset.rankIndex || "0");
+          if (expanded && rankIndex >= limit) row.classList.add("is-hidden");
+          else row.classList.remove("is-hidden");
+        });
+
+        btn.dataset.expanded = expanded ? "false" : "true";
+        btn.textContent = expanded ? `Afficher tout (${total})` : `Top ${limit}`;
+      });
+    });
   }
 }
 

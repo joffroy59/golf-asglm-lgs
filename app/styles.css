@@ -15,7 +15,7 @@ body { margin: 0; color: var(--ink); background: radial-gradient(circle at 100% 
 button, input, select, textarea { font: inherit; }
 .shell { width: min(1180px, calc(100% - 2.5rem)); margin: 0 auto; padding: 4.5rem 0 3rem; }
 .hero { padding-bottom: 3rem; border-bottom: 1px solid var(--line); }
-.hero-row, .season-overview, .archive-panel { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }
+.hero-row, .season-overview-content, .archive-panel { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }
 .eyebrow { margin: 0 0 .55rem; color: var(--green); font-family: "Courier New", monospace; font-size: .72rem; font-weight: 700; letter-spacing: .12em; }
 h1, h2, h3, p { margin-top: 0; }
 h1 { max-width: 760px; margin-bottom: .7rem; font-size: clamp(3rem, 8vw, 6.2rem); letter-spacing: -.065em; line-height: .89; }
@@ -39,6 +39,37 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 0; paddi
 #import-input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .import-label { display: inline-block; }
 .season-overview { padding: 2.5rem 0 1.5rem; }
+.season-overview-details { width: 100%; }
+.season-overview-details summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  display: block;
+  padding: 0;
+  margin: 0;
+}
+.season-overview-details summary::-webkit-details-marker { display: none; }
+.season-overview-details summary::before {
+  content: '▼';
+  display: inline-block;
+  color: white;
+  font-size: .7rem;
+  font-weight: 700;
+  transition: transform .2s ease;
+  margin-right: .4rem;
+}
+.season-overview-details[open] > summary::before { transform: rotate(-90deg); }
+.season-overview-details summary h2 {
+  display: inline-block;
+  padding: .3rem .6rem;
+  margin: 0;
+  font-size: 1.7rem;
+  letter-spacing: -.035em;
+}
+.season-overview-details summary:hover h2 {
+  opacity: 0.9;
+}
+.season-overview-content { margin-top: .4rem; }
 .path, .archive-panel p { margin-bottom: 0; color: var(--muted); font-family: "Courier New", monospace; font-size: .82rem; }
 .source-info { min-height: 1.1rem; margin: .45rem 0 0; color: #2e5f53; font-family: "Courier New", monospace; font-size: .72rem; }
 .scan-result { min-height: 1.1rem; margin: .45rem 0 0; color: var(--green); font-family: "Courier New", monospace; font-size: .72rem; }
@@ -50,6 +81,7 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 0; paddi
 .progress-track { height: 9px; margin-top: .6rem; overflow: hidden; background: #dce2d7; }
 #progress-bar { width: 0; height: 100%; background: var(--green); transition: width .25s ease; }
 .tour-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 1rem; }
+.season-tour-grid { margin-top: 1rem; }
 .tour-card { min-height: 350px; padding: 1.2rem; border: 1px solid var(--line); background: var(--card); box-shadow: var(--shadow); }
 .tour-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
 .tour-number { margin-bottom: 0; color: var(--orange); font-family: "Courier New", monospace; font-size: .75rem; font-weight: 700; }
@@ -74,12 +106,42 @@ h3 { margin-bottom: 1.35rem; font-size: 1.5rem; letter-spacing: -.035em; }
 .stat-value { font-size: 2rem; font-weight: 700; color: var(--green); line-height: 1; }
 .stat-description { font-size: .8rem; color: var(--muted); line-height: 1.4; }
 .statistics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.days-played-layout { display: flex; flex-direction: column; gap: .8rem; margin-top: 1rem; }
+.days-played-series-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .8rem; }
+.days-played-layout .statistics-detail { margin: 0; }
 .statistics-detail { background: var(--card); border: 1px solid var(--line); padding: .8rem; }
 .statistics-detail-title { font-family: "Courier New", monospace; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); margin-bottom: .6rem; }
 .statistics-detail-row { display: flex; justify-content: space-between; align-items: center; padding: .4rem 0; border-bottom: 1px solid var(--line); font-size: .8rem; }
 .statistics-detail-row:last-child { border-bottom: none; }
 .statistics-detail-label { color: var(--muted); }
 .statistics-detail-value { font-weight: 700; color: var(--ink); }
+.days-played-badge {
+  display: inline-block;
+  min-width: 1.8rem;
+  text-align: center;
+  padding: .12rem .42rem;
+  border-radius: 999px;
+  color: #fff;
+  font-family: "Courier New", monospace;
+  font-size: .75rem;
+  font-weight: 700;
+}
+.days-played-row.is-hidden { display: none; }
+.days-played-toggle-wrap { display: flex; justify-content: flex-end; padding-top: .35rem; }
+.days-played-toggle-btn {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--green);
+  font-family: "Courier New", monospace;
+  font-size: .68rem;
+  font-weight: 700;
+  padding: .2rem .5rem;
+}
+.days-played-toggle-btn:hover {
+  border-color: var(--green);
+  background: #edf4ef;
+}
 .statistics-status { min-height: 1rem; margin-top: .5rem; color: var(--muted); font-family: "Courier New", monospace; font-size: .75rem; }
 @media (max-width: 650px) { .statistics-container { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .8rem; } .stat-card { padding: .75rem; } .stat-value { font-size: 1.5rem; } }
 .cat-heading { margin: .4rem 0 .15rem; font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: var(--line); display: inline-block; padding: .15rem .5rem; scroll-margin-top: 8.5rem; }
@@ -143,7 +205,7 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
 #season-form input { font-size: 1rem; }
 .form-hint { margin: 1rem 0 0; color: var(--muted); font-size: .82rem; line-height: 1.45; }
 .dialog-actions { display: flex; justify-content: end; gap: .7rem; margin-top: 1.5rem; }
-@media (max-width: 650px) { .shell { width: min(100% - 1.5rem, 1180px); padding-top: 2.2rem; } .hero-row, .season-overview, .archive-panel, .season-actions { align-items: start; flex-direction: column; gap: 1.25rem; } .progress-block { text-align: left; } .notes-panel, .setup-panel { grid-template-columns: 1fr; gap: .5rem; } }
+@media (max-width: 650px) { .shell { width: min(100% - 1.5rem, 1180px); padding-top: 2.2rem; } .hero-row, .season-overview-content, .archive-panel, .season-actions { align-items: start; flex-direction: column; gap: 1.25rem; } .progress-block { text-align: left; } .notes-panel, .setup-panel { grid-template-columns: 1fr; gap: .5rem; } }
 .standings-tab-pdf { margin-left: auto; border-color: var(--green); color: var(--green); background: var(--card); }
 .standings-tab-pdf:hover { background: var(--lime); color: var(--ink); }
 .standings-section-nav { display: flex; flex-direction: column; gap: .7rem; padding: .8rem 0 1rem; border-bottom: 1px solid var(--line); margin-bottom: .8rem; position: sticky; top: 0; background: var(--paper); z-index: 10; }
@@ -312,6 +374,10 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
 .standings-panel summary:hover h2 {
   opacity: 0.9;
 }
+.standings-container,
+.standings-container * {
+  user-select: text;
+}
 .standings-button-group {
   display: flex;
   flex-wrap: wrap;
@@ -342,6 +408,43 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
   min-width: 2.2rem;
   padding: 0.35rem 0.55rem;
   line-height: 1;
+}
+
+.statistics-header {
+  display: block;
+  width: 100%;
+}
+.statistics-header details {
+  width: 100%;
+}
+.statistics-header summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  display: block;
+  padding: 0;
+  margin: 0;
+}
+.statistics-header summary::-webkit-details-marker { display: none; }
+.statistics-header summary::before {
+  content: '▼';
+  display: inline-block;
+  color: white;
+  font-size: .7rem;
+  font-weight: 700;
+  transition: transform .2s ease;
+  margin-right: .4rem;
+}
+.statistics-header details[open] > summary::before { transform: rotate(-90deg); }
+.statistics-header summary h2 {
+  display: inline-block;
+  padding: .3rem .6rem;
+  margin: 0;
+  font-size: 1.7rem;
+  letter-spacing: -.035em;
+}
+.statistics-header summary:hover h2 {
+  opacity: 0.9;
 }
 
 

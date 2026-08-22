@@ -41,27 +41,32 @@
       </section>
 
       <section class="season-overview" aria-labelledby="season-title">
-        <div>
-          <p class="eyebrow">TABLEAU DE BORD</p>
-          <h2 id="season-title"></h2>
-          <p id="season-path" class="path"></p>
-          <p id="source-info" class="source-info"></p>
-          <p id="scan-result" class="scan-result"></p>
-        </div>
-        <div class="season-actions">
-          <div class="source-toggle" role="group" aria-label="Source des fichiers">
-            <button class="button button-quiet source-toggle-button" id="source-local-button" type="button" aria-pressed="true">Mode local</button>
-            <button class="button button-quiet source-toggle-button" id="source-dropbox-button" type="button" aria-pressed="false">Mode Dropbox</button>
+        <p class="eyebrow">TABLEAU DE BORD</p>
+        <details class="season-overview-details" open>
+          <summary>
+            <h2 id="season-title"></h2>
+          </summary>
+          <div class="season-overview-content">
+            <div>
+              <p id="season-path" class="path"></p>
+              <p id="source-info" class="source-info"></p>
+              <p id="scan-result" class="scan-result"></p>
+            </div>
+            <div class="season-actions">
+              <div class="source-toggle" role="group" aria-label="Source des fichiers">
+                <button class="button button-quiet source-toggle-button" id="source-local-button" type="button" aria-pressed="true">Mode local</button>
+                <button class="button button-quiet source-toggle-button" id="source-dropbox-button" type="button" aria-pressed="false">Mode Dropbox</button>
+              </div>
+              <button class="button button-quiet" id="link-folder-button" type="button">Lier le dossier LGS</button>
+              <div class="progress-block">
+                <span id="progress-label"></span>
+                <div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div>
+              </div>
+            </div>
           </div>
-          <button class="button button-quiet" id="link-folder-button" type="button">Lier le dossier LGS</button>
-          <div class="progress-block">
-            <span id="progress-label"></span>
-            <div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div>
-          </div>
-        </div>
+          <section id="tour-grid" class="tour-grid season-tour-grid" aria-label="Tours de la saison"></section>
+        </details>
       </section>
-
-      <section id="tour-grid" class="tour-grid" aria-label="Tours de la saison"></section>
 
       <section class="standings-panel">
         <div>
@@ -88,21 +93,33 @@
       <section class="statistics-panel" aria-labelledby="statistics-title">
         <div>
           <p class="eyebrow">STATISTIQUES DE COMPETITION</p>
-          <h2 id="statistics-title">Analyse des participations</h2>
-          <p>Apercu des joueurs inscrits et des cartes jouees selon le dernier fichier.</p>
-          <p id="statistics-source-info" class="statistics-status"></p>
+          <div class="statistics-header">
+            <details open>
+              <summary>
+                <h2 id="statistics-title">Analyse des participations</h2>
+              </summary>
+              <p>Apercu des joueurs inscrits et des cartes jouees selon le dernier fichier.</p>
+              <p id="statistics-source-info" class="statistics-status"></p>
+              <div id="statistics-container" class="statistics-container"></div>
+              <p id="statistics-status" class="statistics-status"></p>
+            </details>
+          </div>
         </div>
-        <div id="statistics-container" class="statistics-container"></div>
-        <p id="statistics-status" class="statistics-status"></p>
       </section>
 
       <section class="statistics-panel" aria-labelledby="days-played-title">
         <div>
           <p class="eyebrow">PARTICIPATION DES JOUEURS</p>
-          <h2 id="days-played-title">Classement jours joués</h2>
-          <p>Classement des joueurs selon le nombre de jours/tours joués.</p>
+          <div class="statistics-header">
+            <details open>
+              <summary>
+                <h2 id="days-played-title">Classement jours joués</h2>
+              </summary>
+              <p>Classement des joueurs selon le nombre de jours/tours joués.</p>
+              <div id="days-played-ranking-container" class="days-played-layout"></div>
+            </details>
+          </div>
         </div>
-        <div id="days-played-ranking-container" class="statistics-grid"></div>
       </section>
 
       <section class="notes-panel">
