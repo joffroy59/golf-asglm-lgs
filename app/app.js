@@ -705,22 +705,22 @@ async function findLatestCalculFile() {
     console.log("❌ No linked directory for season:", season.id);
     return null;
   }
-  
+
   const root = linkedDirectoryHandles.get(season.id);
   const calcFiles = [];
   // RMS export handles keyed by tour label (T1–T6, Finale)
   const rmsHandles = {};
-  
+
   console.log("🔍 Scanning linked root:", root.name);
-  
+
   // First check the root LGS directory
   console.log("📁 Checking root directory");
   for await (const entry of root.values()) {
     console.log(`   Entry: ${entry.name} (${entry.kind})`);
-    
+
     if (entry.kind === "file" && /\.xls[xm]?$/i.test(entry.name)) {
       console.log(`      ✓ XLS file: ${entry.name}`);
-      
+
       // Check if it matches our pattern
       if (/Calcul La Grande Semaine/i.test(entry.name) && /HOMME_OU_DAME/i.test(entry.name)) {
         console.log(`        🎯 MATCH: Adding to calcFiles`);
@@ -728,23 +728,23 @@ async function findLatestCalculFile() {
       }
     }
   }
-  
+
   // Then check the tour folders
   const tourFolders = ["Finale", "T6", "T5", "T4", "T3", "T2", "T1"];
-  
+
   for (const folderName of tourFolders) {
     try {
       const folder = await root.getDirectoryHandle(folderName);
       console.log(`📁 Checking folder: ${folderName}`);
       const filesInFolder = [];
-      
+
       for await (const entry of folder.values()) {
         console.log(`   Entry: ${entry.name} (${entry.kind})`);
-        
+
         if (entry.kind === "file" && /\.xls[xm]?$/i.test(entry.name)) {
           filesInFolder.push(entry.name);
           console.log(`      ✓ XLS file: ${entry.name}`);
-          
+
           // Check if it matches our pattern
           if (/Calcul La Grande Semaine/i.test(entry.name) && /HOMME_OU_DAME/i.test(entry.name)) {
             console.log(`        🎯 MATCH: Adding to calcFiles`);
@@ -759,7 +759,7 @@ async function findLatestCalculFile() {
           }
         }
       }
-      
+
       if (filesInFolder.length === 0) {
         console.log(`   (empty folder)`);
       }
@@ -767,24 +767,24 @@ async function findLatestCalculFile() {
       console.log(`⚠️  Could not access ${folderName}:`, error.message);
     }
   }
-  
+
   console.log("✅ Total calc files found:", calcFiles.length);
   if (calcFiles.length > 0) {
     console.log("   All files found:", calcFiles.map(f => f.name).join(", "));
-    
+
     // Priority 1: Look for Finale file
     const finaleFile = calcFiles.find(f => f.name.includes("Finale"));
     if (finaleFile) {
       console.log("   Selected: Finale file:", finaleFile.name, "from", finaleFile.folder);
       return { ...finaleFile, rmsHandles };
     }
-    
+
     // Priority 2: Use the last file (highest tour number)
     const lastFile = calcFiles[calcFiles.length - 1];
     console.log("   Selected: Latest tour file:", lastFile.name, "from", lastFile.folder);
     return { ...lastFile, rmsHandles };
   }
-  
+
   return null;
 }
 
@@ -829,24 +829,24 @@ async function refreshStandings() {
   const season = activeSeason();
   elements.standingsStatus.textContent = "Chargement en cours...";
   elements.standingsContainer.innerHTML = "";
-  
+
   console.log("=== Starting refreshStandings ===");
-  
+
   try {
     let fileInfo = await findLatestCalculFile();
-    
+
     if (!fileInfo) {
       const hasLinked = season.sourceMode === SOURCE_MODES.dropbox
         ? hasDropboxToken()
         : linkedDirectoryHandles.has(season.id);
       console.log("No file found. Linked:", hasLinked);
-      
+
       if (!hasLinked) {
         console.log("Attempting to auto-link source...");
         elements.standingsStatus.textContent = season.sourceMode === SOURCE_MODES.dropbox
           ? "Connexion Dropbox en cours..."
           : "Liaison du dossier LGS en cours...";
-        
+
         const linked = await linkSeasonFolder();
         if (!linked) {
           elements.standingsStatus.innerHTML = season.sourceMode === SOURCE_MODES.dropbox
@@ -854,30 +854,30 @@ async function refreshStandings() {
             : `<strong>Aucun fichier trouve.</strong><br>La liaison au dossier LGS a ete perdue (rechargement de page?). Cliquez sur "Lier le dossier LGS" pour reconnecter, puis revenez ici.`;
           return;
         }
-        
+
         // Try again after linking
         fileInfo = await findLatestCalculFile();
       }
-      
+
       if (!fileInfo) {
         elements.standingsStatus.textContent = "Aucun fichier Calcul La Grande Semaine trouve. Verifiez que le dossier LGS contient des fichiers *HOMME_OU_DAME*.xlsm. Consultez la console (F12) pour les details.";
         return;
       }
     }
-    
+
     console.log("Reading file:", fileInfo.name, "from folder:", fileInfo.folder);
     const file = season.sourceMode === SOURCE_MODES.dropbox
       ? await dropboxDownload(fileInfo.path)
       : await fileInfo.handle.getFile();
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    
+
     console.log("Workbook sheets:", workbook.SheetNames);
-    
+
     const standings = {};
     const categorySheets = { "Resultat LGS (HOMME)": "HOMME", "Resultat LGS (DAME)": "DAME" };
     const isFinaleFile = fileInfo.name.toLowerCase().includes("finale");
-    
+
     // Detect if finale has actually been played: check if AF column has any numeric value
     let finaleHasBeenPlayed = false;
     if (isFinaleFile) {
@@ -891,7 +891,7 @@ async function refreshStandings() {
       }
       console.log(`Finale file: finale played = ${finaleHasBeenPlayed}`);
     }
-    
+
     let sheetsFound = 0;
 
     // Extract per-tour competition dates from the RMS export files (column B, row 1)
@@ -929,18 +929,18 @@ async function refreshStandings() {
         console.log(`Sheet not found: ${sheetName}`);
         continue;
       }
-      
+
       console.log(`Processing sheet: ${sheetName}, Finale file: ${isFinaleFile}, Finale played: ${finaleHasBeenPlayed}`);
       sheetsFound++;
       const sheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(sheet, { header: "A", defval: "" });
-      
+
       console.log(`Data rows in ${sheetName}:`, data.length);
-      
+
       const bySeriesAndTotal = {};
       let validRecords = 0;
       let skippedRecords = 0;
-      
+
       // Per-tour column mapping: [NET col, BRUT col, label]
       const TOUR_COLS = [
         ["F",  "H",  "T1"],
@@ -987,7 +987,7 @@ async function refreshStandings() {
         const addRecord = (scoreType, totalRaw, finalRaw, bestRaw) => {
           let total = parseFloat(totalRaw);
           let totalScore = String(totalRaw).trim();
-          
+
           // "En cours" = season in progress, use best-tour score as ranking proxy
           if (isNaN(total)) {
             const best = parseFloat(bestRaw);
@@ -1035,24 +1035,24 @@ async function refreshStandings() {
         if (totalNET   !== "") addRecord("NET",  totalNET,  finalNET,  bestNET);
         if (totalBRUT  !== "") addRecord("BRUT", totalBRUT, finalBRUT, bestBRUT);
       });
-      
+
       console.log(`${sheetName}: ${validRecords} valid, ${skippedRecords} skipped, series found: ${Object.keys(bySeriesAndTotal).sort().join(", ")}`);
       standings[category] = bySeriesAndTotal;
     }
-    
+
     if (sheetsFound === 0) {
       elements.standingsStatus.textContent = `Erreur : Les feuilles "Resultat LGS (HOMME)" et "Resultat LGS (DAME)" n'ont pas ete trouvees dans ${fileInfo.name}. Verifiez le nom des onglets du classement.`;
       return;
     }
-    
+
     // Store file handle for opening from standings
     currentStandingsFile = {
       handle: fileInfo.handle,
       name: fileInfo.name
     };
-    
+
     renderStandings(standings, fileInfo.name, isFinaleFile, finaleHasBeenPlayed, tourDateMap);
-    renderStatistics(standings, fileInfo.name);
+    renderStatistics(standings, fileInfo.name, tourDateMap);
   } catch (error) {
     elements.standingsStatus.textContent = "Erreur : Impossible de lire le fichier Excel. Verifiez qu'il n'est pas ouvert.";
     console.error(error);
@@ -1064,7 +1064,7 @@ async function openStandingsFile() {
    alert("Aucun fichier charge. Cliquez sur 'Rafraichir classement' d'abord.");
    return;
   }
-  
+
   try {
    const file = await currentStandingsFile.handle.getFile();
    const blob = new Blob([await file.arrayBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -1157,7 +1157,7 @@ function shareStandingsPanelToWhatsapp(panel, tabLabel, fileName) {
   clone.querySelectorAll(".standings-tab").forEach(b => b.remove());
   clone.querySelectorAll(".tour-subtab").forEach(b => b.remove());
   clone.querySelectorAll(".tour-subtabs").forEach(b => b.remove());
-  
+
   // Unhide all hidden elements so they appear in PDF (especially hidden sub-panels)
   clone.querySelectorAll("[hidden]").forEach(el => {
     el.removeAttribute("hidden");
@@ -1216,7 +1216,7 @@ function shareStandingsPanelToWhatsapp(panel, tabLabel, fileName) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     alert(
       `Le PDF a été téléchargé.\n\n` +
       `Pour le partager sur WhatsApp:\n` +
@@ -1332,7 +1332,7 @@ function computeStatistics(standings) {
   return stats;
 }
 
-function renderStatistics(standings, fileName) {
+function renderStatistics(standings, fileName, tourDateMap = {}) {
   const stats = computeStatistics(standings);
   const container = document.getElementById("statistics-container");
   const statusEl = document.getElementById("statistics-status");
@@ -1357,7 +1357,6 @@ function renderStatistics(standings, fileName) {
     <div class="stat-card">
       <div class="stat-label">Cartes jouées</div>
       <div class="stat-value">${stats.totalCards}</div>
-      <div class="stat-description">Cartes uniques (NET et BRUT comptés une fois)</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Femmes</div>
@@ -1404,14 +1403,14 @@ function renderStatistics(standings, fileName) {
         Object.entries(stats.cardsPerTour)
           .map(([tour, count]) => count > 0 ? `
             <div class="statistics-detail-row">
-              <div class="statistics-detail-label">${tour}</div>
+              <div class="statistics-detail-label"><strong>${tour}</strong>${tourDateMap[tour] ? ` (${tourDateMap[tour]})` : ""}</div>
               <div class="statistics-detail-value">${count}</div>
             </div>
           ` : "")
           .join("")
       }
-      ${Object.values(stats.cardsPerTour).every(c => c === 0) ? 
-        '<div style="padding: 0.5rem 0; color: #888; font-size: 0.8rem;">Pas de données de tour</div>' : 
+      ${Object.values(stats.cardsPerTour).every(c => c === 0) ?
+        '<div style="padding: 0.5rem 0; color: #888; font-size: 0.8rem;">Pas de données de tour</div>' :
         ""}
     </div>
   `;
@@ -1643,7 +1642,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
           // Fallback to old behavior: look for next siblings of header
           sib = h.nextElementSibling;
         }
-         
+
         while (sib) {
           if (sib.classList && sib.classList.contains("score-type-header")) break;
           if (sib.classList && sib.classList.contains("cat-heading")) break;
@@ -1760,7 +1759,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
 
     const rankCell = document.createElement("div");
     rankCell.className = "rank";
-    
+
     // Add medal emoji for top 3 with rank number
     let rankDisplay = String(rank);
     let medal = "";
@@ -1774,7 +1773,7 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       medal = "🥉";
       rankCell.classList.add("rank-bronze");
     }
-    
+
     rankCell.textContent = rankDisplay + (medal ? " " + medal : "");
     row.appendChild(rankCell);
 
@@ -1789,11 +1788,11 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
       cell.className = "score-cell";
       if (col.bold) cell.style.fontWeight = "700";
       const val = col.value(player);
-      
+
       // Check if this score is the best in its column
       const isBest = bestScores[colIndex] !== undefined && val === bestScores[colIndex];
       const star = isBest ? "⭐ " : "";
-      
+
       // Only show the value, not the label (label goes in header row)
       cell.innerHTML = `<div class="score-value">${star}${val !== undefined && val !== "" ? val : "—"}</div>`;
       row.appendChild(cell);
@@ -1805,17 +1804,17 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
     const header = document.createElement("div");
     header.className = "column-header";
     header.style.gridTemplateColumns = `2rem 1.5fr ${cols.map(() => "1fr").join(" ")}`;
-    
+
     // Rank column header (empty)
     const rankHeader = document.createElement("div");
     rankHeader.className = "header-cell";
     header.appendChild(rankHeader);
-    
+
     // Name column header (empty)
     const nameHeader = document.createElement("div");
     nameHeader.className = "header-cell";
     header.appendChild(nameHeader);
-    
+
     // Score column headers
     for (const col of cols) {
       const cell = document.createElement("div");
@@ -1989,20 +1988,20 @@ function renderStandings(standings, fileName, isFinaleFile = false, finaleHasBee
         const scoreDetails = document.createElement("details");
         scoreDetails.className = "score-type-details";
         scoreDetails.open = true;
-        
+
         const scoreSummary = document.createElement("summary");
         scoreSummary.className = "score-type-summary";
-        
+
         const h = document.createElement("div");
         h.className = "score-type-header";
         // Assign a stable anchor id from the label
         h.id = "section-" + label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
         h.textContent = label;
-        
+
         scoreSummary.appendChild(h);
         scoreDetails.appendChild(scoreSummary);
         panel.appendChild(scoreDetails);
-        
+
         // Store reference to details so we can append series to it
         panel._currentScoreTypeDetails = scoreDetails;
         added = true;
