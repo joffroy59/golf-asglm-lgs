@@ -39,7 +39,9 @@ const elements = {
   deleteSeasonButton: document.querySelector("#delete-season-button"),
   standingsContainer: document.querySelector("#standings-container"),
   standingsStatus: document.querySelector("#standings-status"),
-  refreshStandingsButton: document.querySelector("#refresh-standings-button")
+  refreshStandingsButton: document.querySelector("#refresh-standings-button"),
+  collapseAllButton: document.querySelector("#collapse-all-button"),
+  expandAllButton: document.querySelector("#expand-all-button")
 };
 
 function makeSeason(year, directory) {
@@ -2188,5 +2190,34 @@ elements.deleteForm.addEventListener("submit", (event) => {
   render();
 });
 elements.refreshStandingsButton.addEventListener("click", refreshStandings);
+
+// Collapse/Expand all serie rankings buttons
+elements.collapseAllButton.addEventListener("click", () => {
+  const standingsContainer = document.querySelector("#standings-container");
+  if (standingsContainer) {
+    // Collapse all score-type-details
+    standingsContainer.querySelectorAll(".score-type-details").forEach(details => {
+      details.open = false;
+    });
+    // Collapse all series-details
+    standingsContainer.querySelectorAll(".series-details").forEach(details => {
+      details.open = false;
+    });
+  }
+});
+
+elements.expandAllButton.addEventListener("click", () => {
+  const standingsContainer = document.querySelector("#standings-container");
+  if (standingsContainer) {
+    // Expand all score-type-details
+    standingsContainer.querySelectorAll(".score-type-details").forEach(details => {
+      details.open = true;
+    });
+    // Expand all series-details
+    standingsContainer.querySelectorAll(".series-details").forEach(details => {
+      details.open = true;
+    });
+  }
+});
 
 render();
