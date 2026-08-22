@@ -290,8 +290,8 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
 .standings-panel details[open] > summary::before { transform: rotate(-90deg); }
 .standings-panel summary h2 {
   display: inline-block;
-  background: #2856a3;
-  color: white;
+  /* background: #28a35b;
+  color: white; */
   padding: .3rem .6rem;
   margin: 0;
   font-size: 1.7rem;
@@ -304,4 +304,80 @@ dialog::backdrop { background: rgba(23, 47, 35, .55); }
   white-space: nowrap;
   flex-shrink: 0;
   align-self: flex-start;
+}
+
+/* Collapsible serie rankings */
+.series-details {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+.series-summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  display: block;
+  padding: 0;
+  margin: 0;
+  margin-bottom: 0.5rem;
+}
+.series-summary::-webkit-details-marker { display: none; }
+.series-summary::before {
+  content: '▼';
+  display: inline-block;
+  color: var(--green);
+  font-size: 0.65rem;
+  font-weight: 700;
+  transition: transform 0.2s ease;
+  margin-right: 0.3rem;
+}
+.series-details[open] > .series-summary::before {
+  transform: rotate(-90deg);
+}
+.series-summary .series-title {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--green);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  padding: 0;
+  margin: 0;
+}
+.series-summary:hover .series-title {
+  opacity: 0.8;
+}
+
+/* Collapsible score-type (NET/BRUT) sections */
+.score-type-details {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+.score-type-summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  display: block;
+  padding: 0;
+  margin: 0;
+  margin-bottom: 0.3rem;
+}
+.score-type-summary::-webkit-details-marker { display: none; }
+.score-type-summary::before {
+  content: '▼';
+  display: inline-block;
+  color: var(--green);
+  font-size: 0.65rem;
+  font-weight: 700;
+  transition: transform 0.2s ease;
+  margin-right: 0.3rem;
+}
+.score-type-details[open] > .score-type-summary::before {
+  transform: rotate(-90deg);
+}
+.score-type-summary .score-type-header {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+}
+.score-type-summary:hover .score-type-header {
+  opacity: 0.8;
 }
