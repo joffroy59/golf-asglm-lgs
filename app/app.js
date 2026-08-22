@@ -1239,6 +1239,7 @@ function computeStatistics(standings) {
     playersBySeries: {},
     cardsBySeries: {},
     cardsPerTour: {},
+    daysPlayedRanking: [],
     uniquePlayerNames: new Set(),
     uniqueWomenNames: new Set(),
     uniqueMenNames: new Set()
@@ -1323,6 +1324,21 @@ function computeStatistics(standings) {
       stats.cardsPerTour[tour]++;
     }
   }
+
+  // Build ranking of days played per player (unique tours, NET/BRUT merged)
+  const playerTours = new Map(); // key: player name -> Set of tours played
+  for (const [comboKey, combo] of comboStats.entries()) {
+    const [playerName] = comboKey.split("|");
+    if (!playerTours.has(playerName)) playerTours.set(playerName, new Set());
+    const toursSet = playerTours.get(playerName);
+    for (const tour of combo.tours) toursSet.add(tour);
+  }
+  stats.daysPlayedRanking = [...playerTours.entries()]
+    .map(([name, tours]) => ({ name, days: tours.size }))
+    .sort((a, b) => {
+      const d = b.days - a.days;
+      return d !== 0 ? d : a.name.localeCompare(b.name);
+    });
 
   // Count unique players (one person might have multiple cards for NET/BRUT)
   stats.uniquePlayers = stats.uniquePlayerNames.size;
@@ -1447,7 +1463,23 @@ function renderStatistics(standings, fileName, tourDateMap = {}) {
     </div>
   `;
 
-  detailsDiv.innerHTML = categoryHtml + tourHtml + seriesHtml;
+  const daysPlayedRankingHtml = `
+    <div class="statistics-detail">
+      <div class="statistics-detail-title">Classement jours joués</div>
+      ${
+        stats.daysPlayedRanking.length > 0
+          ? stats.daysPlayedRanking.map((entry, index) => `
+              <div class="statistics-detail-row">
+                <div class="statistics-detail-label">${index + 1}. ${entry.name}</div>
+                <div class="statistics-detail-value">${entry.days}</div>
+              </div>
+            `).join("")
+          : '<div style="padding: 0.5rem 0; color: #888; font-size: 0.8rem;">Pas de données</div>'
+      }
+    </div>
+  `;
+
+  detailsDiv.innerHTML = categoryHtml + tourHtml + seriesHtml + daysPlayedRankingHtml;
   container.appendChild(detailsDiv);
 }
 
